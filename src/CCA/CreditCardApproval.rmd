@@ -83,6 +83,13 @@ str(dfApplications)
 str(dfCredit)
 ```
 
+Se observan IDs repetidos
+
+## Head de Credit Records
+```{r}
+head(dfCredit)
+```
+
 
 ## Applications Records Summary
 ```{r}
@@ -94,4 +101,21 @@ summary(dfApplications)
 ```{r}
 summary(dfCredit)
 ```
+
+## Merge Data (antes de mergear la data hay que limpiarla! o hacer un pivot de los meses? los meses llegan hasta -60 -> sacar conclusiones y ajustar a una columna? -> ejemplo: antigúedad del prestamo o credit record)
+```{r}
+dfCreditCard <- merge(dfApplications, dfCredit, by="ID")
+```
+
+## Merge Structure
+```{r}
+str(dfCreditCard)
+```
+
+
+## Merge Summary
+```{r}
+summary(dfCreditCard)
+```
+
 
