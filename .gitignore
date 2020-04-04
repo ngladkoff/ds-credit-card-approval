@@ -3,3 +3,5 @@
 .RData
 .Ruserdata
 src/CCA/CreditCardApproval.nb.html
+src/CCA/data/applRecord.csv
+src/CCA/data/credRecord.csv

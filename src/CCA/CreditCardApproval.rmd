@@ -17,12 +17,81 @@ https://github.com/ngladkoff/ds-credit-card-approval
 
 
 ```{r, message=FALSE}
-# Load libraries
+##################
+# Load libraries #
+##################
 library(ggplot2)
 
 ```
 
 ```{r}
-# Load the data sets
+######################
+# Download datafiles #
+######################
+
+# Set the data directory 
+# It will be a subdirectory 'data/' of the current directory
+maindir <- getwd()
+datadir <- paste(maindir, "data", sep="/")
+
+applRecordURL <- "https://raw.githubusercontent.com/ngladkoff/ds-credit-card-approval/master/data/application_record.csv"
+credRecordURL <- "https://raw.githubusercontent.com/ngladkoff/ds-credit-card-approval/master/data/credit_record.csv"
+
+applRecordFile <- paste(datadir, "applRecord.csv", sep="/")
+credRecordFile <- paste(datadir, "credRecord.csv", sep="/")
+
+if (!dir.exists(datadir)) {
+    print(paste("Creating data directory ", datadir))
+    dir.create(datadir)
+}
+
+if (!file.exists(applRecordFile)) {
+    print("Downloading Application Records")
+    download.file(applRecordURL, applRecordFile, method="auto")
+} else {
+    print(paste("Data file", applRecordFile, "already exists"))
+}
+
+if (!file.exists(credRecordFile)) {
+    print("Downloading Application Records")
+    download.file(credRecordURL, credRecordFile, method="auto")
+} else {
+    print(paste("Data file", credRecordFile, "already exists"))
+}
 
 ```
+
+```{r}
+#######################
+# Load the dataframes #
+#######################
+
+dfApplications <- read.csv(applRecordFile)
+dfCredit <- read.csv(credRecordFile)
+
+```
+
+
+## Applications Records Structure
+```{r}
+str(dfApplications)
+```
+
+
+## Credit Records Structure
+```{r}
+str(dfCredit)
+```
+
+
+## Applications Records Summary
+```{r}
+summary(dfApplications)
+```
+
+
+## Credit Records Summary
+```{r}
+summary(dfCredit)
+```
+
