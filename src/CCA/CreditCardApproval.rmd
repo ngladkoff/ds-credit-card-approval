@@ -21,6 +21,7 @@ https://github.com/ngladkoff/ds-credit-card-approval
 # Load libraries #
 ##################
 library(ggplot2)
+library(dplyr)
 
 ```
 
@@ -90,6 +91,29 @@ Se observan IDs repetidos
 head(dfCredit)
 ```
 
+## Open Data Viewer
+```{r}
+View(dfCredit)
+```
+
+## Evaluo IDs duplicados en Applications
+```{r}
+dfAppIds <- data.frame(table(dfApplications$ID))
+str(dfAppIds)
+summary(dfAppIds)
+
+```
+
+## Evaluo IDs duplicados en Credits
+```{r}
+dfCredIds <- data.frame(table(dfCredit$ID))
+str(dfCredIds)
+summary(dfCredIds)
+
+```
+
+
+
 
 ## Applications Records Summary
 ```{r}
@@ -117,5 +141,4 @@ str(dfCreditCard)
 ```{r}
 summary(dfCreditCard)
 ```
-
 
