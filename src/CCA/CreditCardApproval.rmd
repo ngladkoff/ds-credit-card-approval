@@ -1,0 +1,28 @@
+---
+title: "Credit Card Approval Prediction Model"
+author: "Marcelo Capozzi - Nicolas Gladkoff"
+date: "Abril 2020"
+output:
+  html_notebook: default
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+### DataSource:
+https://www.kaggle.com/rikdifos/credit-card-approval-prediction
+
+### GitHub:
+https://github.com/ngladkoff/ds-credit-card-approval
+
+
+```{r, message=FALSE}
+# Load libraries
+library(ggplot2)
+
+```
+
+```{r}
+# Load the data sets
+
+```
