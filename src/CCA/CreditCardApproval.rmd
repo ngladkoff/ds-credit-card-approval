@@ -3,10 +3,10 @@ title: "Credit Card Approval Prediction Model"
 author: "Marcelo Capozzi - Nicolas Gladkoff"
 date: "Abril 2020"
 output:
-  html_notebook: default
-  pdf_document: default
   html_document:
     df_print: paged
+  html_notebook: default
+  pdf_document: default
 ---
 
 ### DataSource:
@@ -22,6 +22,7 @@ https://github.com/ngladkoff/ds-credit-card-approval
 ##################
 library(ggplot2)
 library(dplyr)
+library(sqldf)
 
 ```
 
@@ -112,7 +113,52 @@ summary(dfCredIds)
 
 ```
 
+## Analisis de duplicados
+```{r}
+cUniAppIds <- dim(dfApplications[unique(dfApplications$ID),])[1]
+cDupAppIds <- dim(dfApplications[duplicated(dfApplications$ID),])[1]
+cDupAppRecord <- dim(dfApplications[duplicated(dfApplications),])[1]
+dfDupAppIds <- dfApplications[duplicated(dfApplications$ID),]
+cAppIds <- dim(dfApplications)[1]
 
+print(paste("IDs unicos:", cUniAppIds))
+print(paste("IDs duplicados:", cDupAppIds))
+print(paste("Records duplicados: ", cDupAppRecord))
+print(paste("Total:", cAppIds))
+print(paste("Duplicados: %", (round((cDupAppIds*100/cAppIds), digits=2))))
+
+```
+
+## Hicimos una limpieza del 1er dataset
+```{r}
+dfDupAppIds2 <- data.frame(dfDupAppIds$ID)
+dfDupIds <- sqldf("SELECT distinct ID FROM dfApplications WHERE ID in dfDupAppIds2")
+print(dfDupIds)
+
+dfAppCleaned <- sqldf("SELECT * FROM dfApplications WHERE ID NOT in dfDupAppIds2")
+cNewTotal <- dim(dfAppCleaned)[1]
+print(cAppIds - cNewTotal)
+```
+
+## Obtener predictor desde Creditos
+
+```{r}
+
+dfCredIdMonth <- sqldf("SELECT ID, MAX(MONTHS_BALANCE) as LAST FROM dfCredit GROUP BY ID order by LAST")
+summary(dfCredIdMonth)
+
+```
+
+```{r}
+dfCreditCleaned <- sqldf("SELECT t1.ID, t1.LAST, t2.STATUS FROM dfCredIdMonth t1 JOIN dfCredit t2 ON t1.ID = t2.ID and t1.LAST = t2.MONTHS_BALANCE")
+summary(dfCreditCleaned)
+```
+
+```{r}
+dfCreditCleaned$STATUS <- ifelse(dfCreditCleaned$STATUS == 'C' | dfCreditCleaned$STATUS == 'X', 1, 0)
+dfCreditCleaned$STATUS <- factor(dfCreditCleaned$STATUS, ordered=FALSE)
+summary(dfCreditCleaned)
+```
 
 
 ## Applications Records Summary
