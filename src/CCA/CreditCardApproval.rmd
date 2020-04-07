@@ -1,20 +1,80 @@
 ---
-title: "Credit Card Approval Prediction Model"
-author: "Marcelo Capozzi - Nicolas Gladkoff"
+title: "UADE - Maestria TIC - Ciencia de Datos - Modelo de predicción para aprobación de Tarjetas de Crédito"
+author: "Marcelo Capozzi (LU: 1119183) - Nicolas Gladkoff (LU: 1085075)"
 date: "Abril 2020"
 output:
+  html_notebook: default
   html_document:
     df_print: paged
-  html_notebook: default
   pdf_document: default
 ---
 
-### DataSource:
-https://www.kaggle.com/rikdifos/credit-card-approval-prediction
-
-### GitHub:
+#### GitHub:
 https://github.com/ngladkoff/ds-credit-card-approval
 
+#### DataSource:
+https://www.kaggle.com/rikdifos/credit-card-approval-prediction
+
+
+# Objetivo
+El presente trabajo busca evaluar si es posible predecir si en base a los datos de una solicitud de tarjeta de crédito tiene alta probabilidad de quedar impaga. 
+
+Para este modelo de predicción se analizarán los datos de la información histórica del comportamiento de pago de los clientes pasados y actuales de la entidad.
+
+La decisión actualmente la toma el Analista de Créditos en base a su experiencia, se busca brindarle una herramienta adicional que facilite su trabajo o sirva de justificación de sus decisiones.
+
+Queremos mejorar el proceso de selección, reduciendo un 15% la incobrabilidad.   
+
+
+# Datos
+
+La entidad crediticia nos proporcionó los datos históricos que tienen disponibles, datos que deberán ser analizados para evaluar su calidad y si son suficientes para ayudarnos a resolver el problema.
+
+Se nos proporcionó 2 datasets: 
+
+- application_record.csv: que contiene los datos de las solicitudes de tarjetas de crédito
+
+- credit_record.csv: que contiene la información histórica del comportamiento de pagos
+
+
+## Diccionario de datos
+
+Descripción de los datasets
+
+***application_record***
+
+| Feature name | Explanation | Remarks | 
+|---|---|---|
+| ID | Cliente number ||
+| CODE_GENDER| gender ||
+| FLAGOWNCAR | Is there a car ||
+| FLAGOWNREALTY | Is there a property ||
+| CNT_CHILDREN | Number of children || 
+| AMTINCOMETOTAL | Annual income ||
+| NAMEINCOMETYPE |	Income category	||
+| NAMEEDUCATIONTYPE | education level ||
+| NAMEFAMILYSTATUS | Marital status ||
+| NAMEHOUSINGTYPE | Way of living ||
+| DAYS_BIRTH | birthday ||
+| DAYS_EMPLOYED | Start date ||
+| FLAG_MOBIL | Is there a mobile phone ||
+| FLAGWORKPHONE | Is there a work phone	||
+| FLAG_PHONE | Is there a phone ||
+| FLAG_EMAIL | Is there an email	||
+| OCCUPATION_TYPE | Occupation ||
+| CNTFAMMEMBERS | Family size	||
+
+***credit_record***
+
+| Feature name | Explanation | Remarks | 
+|---|---|---|
+| ID | client number ||
+| MONTHS_BALANCE | record month | The month of the extracted data is the starting point, backwards, 0 is the current month, -1 is the previous month, and so on
+| STATUS | status | 0: 1-29 days past due 1: 30-59 days past due 2: 60-89 days overdue 3: 90-119 days overdue 4: 120-149 days overdue 5: Overdue or bad debts, write-offs for more than 150 days C: paid off that month X: No loan for the month
+
+## Configuración de ambiente y carga de los datos
+
+Seteamos las librerías a utilizar y cargamos los datasets en el ambiente de trabajo.
 
 ```{r, message=FALSE}
 ##################
@@ -23,8 +83,12 @@ https://github.com/ngladkoff/ds-credit-card-approval
 library(ggplot2)
 library(dplyr)
 library(sqldf)
+library(corrplot)
+library(Information)
 
 ```
+
+Si los datasets no están en el directorio de trabajo los descargamos:
 
 ```{r}
 ######################
@@ -69,47 +133,241 @@ if (!file.exists(credRecordFile)) {
 #######################
 
 dfApplications <- read.csv(applRecordFile)
-dfCredit <- read.csv(credRecordFile)
+dfCredits <- read.csv(credRecordFile)
 
 ```
 
 
-## Applications Records Structure
+# Análisis Exploratorio de Datos
+
+## 1 - Exámen inicial de los datos
+
+### 1.1 - Applications
+
+#### 1.1.1 - Estructura
+
 ```{r}
 str(dfApplications)
 ```
 
+En la estructura observamos el tipo de cada variable, observando algunas que necesitan ser convertidas en categóricas:
 
-## Credit Records Structure
+- FLAG_MOBIL
+- FLAG_WORK_PHONE
+- FLAG_PHONE
+- FLAG_EMAIL
+
+Se observa también algunas variables categóricas con muchas categorías, algo a tener en cuenta pues el tipo de problema puede resolverse utilizando una regresión logística, y este tipo de modelo pierde capacidad de predicción ante este tipo de variables.
+
+Por último, nos llama la atención la variable DAYS_EMPLOYED que tiene valores negativos y positivos, algunos muy grandes (en el rango de los 1000 años)
+
+
+#### 1.1.2 - Conversión variables categóricas
+
 ```{r}
-str(dfCredit)
+dfApplications$FLAG_MOBIL <- factor(dfApplications$FLAG_MOBIL, ordered=FALSE)
+dfApplications$FLAG_WORK_PHONE <- factor(dfApplications$FLAG_WORK_PHONE, ordered=FALSE)
+dfApplications$FLAG_PHONE <- factor(dfApplications$FLAG_PHONE, ordered=FALSE)
+dfApplications$FLAG_EMAIL <- factor(dfApplications$FLAG_EMAIL, ordered=FALSE)
+
 ```
 
-Se observan IDs repetidos
-
-## Head de Credit Records
+#### 1.1.3 - Summary
 ```{r}
-head(dfCredit)
+summary(dfApplications)
 ```
 
-## Open Data Viewer
+Se vuelve a observar alguna anormalidad en la variable DAYS_EMPLOYED que deberá ser analizada.
+
+Se observa que la variable FLAG_MOBIL solo tiene una categoría, por lo que ya se puede descartar por no aportar valor al modelo.
+
+La variable OCCUPATION_TYPE además de tener muchas categorías, como ya se había notado anteriormente, parece tener datos incompletos. Deberá ser analizado.
+
+Respecto a la cantidad de hijos y el ingreso total vamos a tener que evaluar la distribución, los máximos y mínimos están muy lejos del promedio y la mediana.
+
+#### 1.1.4 - Busqueda de IDs duplicados
+
+Para asegurarnos que ambos datasets se puedan juntar una vez procesados debemos asegurarnos no tener IDs duplicados en el dataset de Applications.
+
 ```{r}
-View(dfCredit)
+dfAppIds <- data.frame(table(dfApplications$ID))
+cUniAppIds <- dim(dfApplications[unique(dfApplications$ID),])[1]
+cDupAppIds <- dim(dfApplications[duplicated(dfApplications$ID),])[1]
+cDupAppRecord <- dim(dfApplications[duplicated(dfApplications),])[1]
+dfDupAppIds <- dfApplications[duplicated(dfApplications$ID),]
+cAppIds <- dim(dfApplications)[1]
+
+print(paste("IDs unicos:", cUniAppIds))
+print(paste("IDs duplicados:", cDupAppIds))
+print(paste("Records duplicados: ", cDupAppRecord))
+print(paste("Total:", cAppIds))
+print(paste("Duplicados: %", (round((cDupAppIds*100/cAppIds), digits=2))))
+
 ```
+
+Observamos que tenemos 47 IDs duplicados, pero "Records duplicados" nos está marcando que contienen distintos datos, no es una misma solicitud cargada 2 veces sino que son 2 solicitudes con el mismo ID.
+
+Por el bajo porcentaje que representan se decide eliminar del análisis estos registros duplicados.
+
+```{r}
+dfDupAppIds2 <- data.frame(dfDupAppIds$ID)
+dfDupIds <- sqldf("SELECT distinct ID FROM dfApplications WHERE ID in dfDupAppIds2")
+dfApplicationsCleaned <- sqldf("SELECT * FROM dfApplications WHERE ID NOT in dfDupAppIds2")
+cNewTotal <- dim(dfApplicationsCleaned)[1]
+print(paste("Cantidad Anterior - Cantidad Nueva: ",cAppIds - cNewTotal))
+```
+
+Verificamos que la cantidad nueva tiene 94 registros menos (47 duplicados x 2).
+
+
+### 1.2 - Credits
+
+#### 1.2.1 - Estructura
+
+```{r}
+str(dfCredits)
+```
+
+Aparentemente cada ID de solicitud se crean varios registros, uno por cada mes, con el estado de la deuda en dicho mes.
+
+Se imprimen los primeros y ultimos registros para validar:
+```{r}
+head(dfCredits)
+tail(dfCredits)
+```
+
+Como conslusión, vamos a necesitar reducir estos datos a un solo registro por ID de aplicación para poder fittiar nuestro modelo.
+
+
+#### 1.2.2 - Summary
+
+```{r}
+summary(dfCredits)
+```
+
+No se observan números fuera de rango dentro de la variable MONTHS_BALANCE.
+
+Para analizar correctamente la variable STATUS vamos a necesitar reducir los registros a uno por ID previamente.
+
+
+# 2 - Reducción dataset Credits
+
+## 2.1 - Identificar IDs únicos
+```{r}
+dfCredIds <- data.frame(table(dfCredits$ID))
+```
+
+
+### 2.1.1 - Estructura
+```{r}
+str(dfCredIds)
+```
+
+El dataset Credits cuenta con 45985 IDs únicos, es decir que del dataset de Applications de poco más de 438000 registros solo tenemos información de algunos.
+
+### 2.1.2 - Summary
+```{r}
+summary(dfCredIds)
+```
+
+
+## 2.2 - Reducir registros
+
+Se decidió que vamos a tomar el estado del último més del que tenemos información. 
+
+Para esto recuperamos primero cual es ese último mes:
+```{r}
+
+dfCreditsLastMonth <- sqldf("SELECT ID, MAX(MONTHS_BALANCE) as LAST FROM dfCredits GROUP BY ID order by LAST")
+str(dfCreditsLastMonth)
+
+```
+
+Verificamos que la cantidad de registros coincide con el análisis de IDs únicos. 
+
+Continuamos agregando el estádo del crédito en ese último mes.
+```{r}
+dfCreditsReduced <- sqldf("SELECT t1.ID, t1.LAST, t2.STATUS FROM dfCreditsLastMonth t1 JOIN dfCredits t2 ON t1.ID = t2.ID and t1.LAST = t2.MONTHS_BALANCE")
+summary(dfCreditsReduced)
+```
+
+Definimos nuestra variable objetivo: Approve. Para esto teniendo en cuenta el STATUS en el último mes que se tiene registro, asumimos que si no quedó con deuda (estados C, X y 0) debería ser aprobada esa solicitud y si quedó en alguno de los otros estados entonces no.
+```{r}
+dfCreditsReduced$Approve <- ifelse(dfCreditsReduced$STATUS == 'C' | dfCreditsReduced$STATUS == 'X' | dfCreditsReduced$STATUS == '0', 1, 0)
+dfCreditsReduced$Approve <- factor(dfCreditsReduced$Approve, ordered = FALSE)
+summary(dfCreditsReduced)
+```
+
+Se observa que la cantidad de créditos "malos" es de aproximadamente el 1%, que no es un porcentaje razonable de incobrabilidad, que según lo que hemos investigado suele ser lijeramente superior al 3%. 
+
+Se debería consultar a negocio si pueden ser correctos estos valores, podría suceder que tuviera una cartera de muy buena calidad crediticia.
+
+A los fines del ejercicio, y para que no quede una distribución muy desbalanceada se decide probar interpretando los créditos con deuda en los últimos 30 días (Status=0) también como incobrables. 
+
+Se redefine la variable Approve:
+```{r}
+dfCreditsReduced$Approve <- ifelse(dfCreditsReduced$STATUS == 'C' | dfCreditsReduced$STATUS == 'X', 1, 0)
+dfCreditsReduced$Approve <- factor(dfCreditsReduced$Approve, ordered = FALSE)
+summary(dfCreditsReduced)
+
+```
+
+Con esta nueva definición, tenemos un 31% de créditos "malos", que vamos a utilizar para entrenar el modelo.
+
+
+# 3 - Unificar los datasets
+
+## 3.1 - Unificar
+```{r}
+dfCreditCard <- merge(dfApplicationsCleaned, dfCreditsReduced, by="ID")
+```
+
+## 3.2 - Estructura
+```{r}
+str(dfCreditCard)
+```
+
+## 3.3 - Summary
+```{r}
+summary(dfCreditCard)
+```
+
+## 3.4 - Conclusiones de la unificación
+
+ ***ToDo*** se perdieron registros! quedó mucho menor el set de datos, hay que mencionarlo
+
+
+# 4 - Análisis de Variables sobre dataset unificado
+
+ ***ToDo*** 1ro analizar la variables una a una y 2do analizar si hay relación entre la variable candidata a predictora y la variable objetivo.
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+---
+
+---
+
+---
+# DRAFT - PAPELES DE TRABAJO
+
+
+
 
 ## Evaluo IDs duplicados en Applications
 ```{r}
 dfAppIds <- data.frame(table(dfApplications$ID))
 str(dfAppIds)
 summary(dfAppIds)
-
-```
-
-## Evaluo IDs duplicados en Credits
-```{r}
-dfCredIds <- data.frame(table(dfCredit$ID))
-str(dfCredIds)
-summary(dfCredIds)
 
 ```
 
@@ -156,35 +414,72 @@ summary(dfCreditCleaned)
 
 ```{r}
 dfCreditCleaned$STATUS <- ifelse(dfCreditCleaned$STATUS == 'C' | dfCreditCleaned$STATUS == 'X', 1, 0)
-dfCreditCleaned$STATUS <- factor(dfCreditCleaned$STATUS, ordered=FALSE)
+#dfCreditCleaned$STATUS <- factor(dfCreditCleaned$STATUS, ordered=FALSE)
+```
+
+```{r}
 summary(dfCreditCleaned)
 ```
 
 
-## Applications Records Summary
 ```{r}
-summary(dfApplications)
+
+#dfCreditCard <- merge(dfApplications, dfCreditCleaned, by="ID")
+dfCreditCard <- sqldf("SELECT t1.ID, t1.CODE_GENDER, t1.FLAG_OWN_CAR, t1.FLAG_OWN_REALTY, t1.CNT_CHILDREN, t1.AMT_INCOME_TOTAL, t1.NAME_INCOME_TYPE, t1.NAME_EDUCATION_TYPE, t1.NAME_FAMILY_STATUS, t1.NAME_HOUSING_TYPE, t1.DAYS_BIRTH, t1.DAYS_EMPLOYED, t1.FLAG_MOBIL, t1.FLAG_PHONE, t1.FLAG_WORK_PHONE, t1.FLAG_EMAIL, t1.OCCUPATION_TYPE, t1.CNT_FAM_MEMBERS, t2.LAST, t2.STATUS FROM dfApplications t1 JOIN dfCreditCleaned t2 ON t1.ID = t2.ID")
+
 ```
 
 
-## Credit Records Summary
 ```{r}
-summary(dfCredit)
+summary(dfCreditCard)
+
+dim(dfCreditCard)[1]
 ```
 
-## Merge Data (antes de mergear la data hay que limpiarla! o hacer un pivot de los meses? los meses llegan hasta -60 -> sacar conclusiones y ajustar a una columna? -> ejemplo: antigúedad del prestamo o credit record)
-```{r}
-dfCreditCard <- merge(dfApplications, dfCredit, by="ID")
-```
-
-## Merge Structure
 ```{r}
 str(dfCreditCard)
 ```
 
-
-## Merge Summary
 ```{r}
-summary(dfCreditCard)
+dfSelect <- select(dfCreditCard, OCCUPATION_TYPE, STATUS)
+plot(dfSelect)
+
+dfSelect <- select(dfCreditCard, NAME_EDUCATION_TYPE, STATUS)
+plot(dfSelect)
+
+dfSelect <- select(dfCreditCard, DAYS_EMPLOYED, STATUS)
+plot(dfSelect)
+
+#ggplot(dfCreditCard) +
+#    geom_boxplot(aes(x=OCCUPATION_TYPE, y=STATUS))
+
+```
+
+```{r}
+#mydata <- read.csv("https://stats.idre.ucla.edu/stat/data/binary.csv")
+#summary(mydata)
+IV <- create_infotables(data=dfCreditCard, y="STATUS", bins=10, parallel=FALSE)
+```
+
+
+```{r}
+
+dfcor <- select_if(dfCreditCard, is.numeric)
+dfcor <- select(dfcor, -ID)
+cm <- cor(dfcor)
+corrplot(cm)
+
+```
+
+
+```{r}
+ggplot(dfCreditCard) +
+    geom_boxplot(aes(x=DAYS_BIRTH, y=CNT_FAM_MEMBERS))
+```
+
+
+## Merge Data (antes de mergear la data hay que limpiarla! o hacer un pivot de los meses? los meses llegan hasta -60 -> sacar conclusiones y ajustar a una columna? -> ejemplo: antigúedad del prestamo o credit record)
+```{r}
+dfCreditCard <- merge(dfApplications, dfCredit, by="ID")
 ```
 
