@@ -335,34 +335,106 @@ summary(dfCreditCard)
 
 ## 3.4 - Conclusiones de la unificación
 
-Luego de unir ambos datasets observamos que la cantidad de registros de clientes con información histórica ha disminuido. Esto se debe a que no todos los clientes registrados poseen un historial crediticio. Para los fines de este análisis, aceptaremos cómo válida esta reducción.
+Luego de unir ambos datasets observamos que la cantidad de registros de clientes que poseen información histórica ha disminuido. 
+
+Esto se debe a que no todas las solicitudes de tarjeta de crédito tienen asociado un historial crediticio registrado. 
+
+Para los fines de este análisis, aceptaremos cómo válida esta reducción en el set de datos.
  
- ***ToDo*** se perdieron registros! quedó mucho menor el set de datos, hay que mencionarlo
+```{r}
+print(paste("Registros en el historial:", dim(dfCreditsReduced)[1]))
+print(paste("Solicitudes de tarjetas de crédito con registros en el historial:", dim(dfCreditCard)[1]))
+```
 
-
-# 4 - Análisis de Variables sobre dataset unificado
+# 4 - Análisis de variables sobre dataset unificado
 
  ***ToDo*** 1ro analizar la variables una a una y 2do analizar si hay relación entre la variable candidata a predictora y la variable objetivo.
  
-```{r}
-str(dfCreditCard)
-```
  
+## 4.1 Análisis de variables númericas
+
+Observaremos para el análisis en cuestión la correlación de los valores númericos del dataset unificado.
+
+En el gráfico de correlación podemos identificar y destacar un coeficiente de correlación positiva entre la *CNT_CHILDREN* y *CNT_FAM_MEMBERS*. Esta es una relación presente entre la cantidad de hijos y la cantidad de miembros de una familia.
+
+También hemos observado el coeficiente de correlación negativo hayado en la relación entre *DAYS_BIRTH* y *DAYS_EMPLOYED*.
+
+***ToDo*** mejorar la justificación desde el lado del negocio
+
+```{r}
+dfcor <- select_if(dfCreditCard, is.numeric)
+dfcor <- select(dfcor, -ID)
+cm <- cor(dfcor)
+corrplot(cm, method = "number", type = "upper")
+```
+
+
+### 4.1.1. Variable: CNT_CHILDREN
+
+### CNT_CHILDREN
+
+En relación a la variable *CNT_CHILDREN* observaremos la distribución de la cantidad total de hijos en cada barra del siguiente gráfico:
+
+```{r}
+ggplot(dfCreditCard) + 
+  geom_bar(aes(x=CNT_CHILDREN), fill="steel blue", width = 0.5)
+```
+
+Se observa una marcada concentración respeto de la cantidad de hijos cuando dicho valor es menor a 5.
+
+Podemos confirmar que el valor general observado anteriormente mantiene el nivel de concentración para la cantidad de hijos en relación al pago dentro su historial crediticio. 
+
+```{r}
+ggplot(dfCreditCard) +
+    geom_point(aes(x=Approve, y=CNT_CHILDREN), color="steel blue")
+```
+
+
+En base al análisis de los datos, podríamos inferir que cuando la cantidad de hijos es mayor a 5, el porcentaje de pagos disminuye, por ende la cantidad de desaprobaciones aumenta.
+
+Por fuera de esa concentración detectamos valores bien marcados que deberemos determinar cómo tratarlos.
+
+***ToDo*** definir que hacer con los outliers. si se agregan reemplazando el valor por el promedio o se descartan.
+
+### CNT_CHILDREN vs APPROVE
+
+La cantidad de casos aprobados en comparación de los que no, se mantienen en promedio en valores similares.
+
+Esto sucede en torno a los 5 hijos. Luego de ese valor estimado, aumenta significativamente la cantidad de casos no aprobados por falta de pago en su historial crediticio.
+
+```{r}
+ggplot(dfCreditCard) + 
+  geom_boxplot(aes(x=Approve, y=CNT_CHILDREN), outlier.color = "red")
+```
+
+Representando los datos de una manera diferente, podemos observar que la inferencia realizada anteriormente es consistente.
+Los casos donde la cantidad de hijos sea mayor a 5 supone una falta de pago de acuerdo al criterio mencionado previamente.
+
+```{r}
+ggplot(dfCreditCard) +
+  geom_bar(aes(x=CNT_CHILDREN, fill=Approve), position="fill")
+```
+
+
+---
+# DRAFT - PAPELES DE TRABAJO
+
 ```{r}
 
-#ggplot(dfCreditCard) + 
-#  geom_density(aes(x=CNT_FAM_MEMBERS)) + scale_x_continuous(labels=number)
+#ggplot(dfCreditCard) +
+#    geom_point(aes(x=Approve, y=CNT_FAM_MEMBERS), color="steel blue")
 
-#cor(dfCreditCard$LAST, dfCreditCard$DAYS_BIRTH)
+#barplot(table(dfCreditCard$STATUS))
+
+#barplot(table(dfCreditCard$OCCUPATION_TYPE))
+
+##### ☺grafico 19 cat barras horizontales
+###### mapa de calor / covid
+
+```
 
 
-
-#set.seed(232)
-#seleccion <- runif(dim(dfCreditCard)[1])
-#dftrain <- select(dfCreditCard, STATUS, Approve)[seleccion<0.8,]
-#summary(dftrain)
-#dftest <- select(dfCreditCard, salesLast3Mon, salesThisMon)[seleccion >= 0.8,] 
-
+```{r}
 #library(purrr)
 #library(tidyr)
 #library(ggplot2)
@@ -374,88 +446,7 @@ str(dfCreditCard)
 #    facet_wrap(~ key, scales = "free") +
 #    geom_histogram()
 
-
-#ggplot(dfCreditCard) +
-    geom_point(aes(x=Approve, y=CNT_FAM_MEMBERS), color="steel blue")
-
-#barplot(table(dfCreditCard$STATUS))
-
-#barplot(table(dfCreditCard$OCCUPATION_TYPE))
-
-
-ggplot(dfCreditCard) + 
-  geom_histogram(aes(x=CNT_FAM_MEMBERS), binwidth=1, fill="steel blue")
-
-ggplot(dfCreditCard) + 
-  geom_bar(aes(x=CNT_FAM_MEMBERS), fill="steel blue")
-
-ggplot(dfCreditCard) + 
-  geom_boxplot(aes(x=STATUS, y=CNT_FAM_MEMBERS))
-
-ggplot(dfCreditCard) + 
-  geom_boxplot(aes(x=Approve, y=CNT_FAM_MEMBERS))
-
-
 ```
- 
- 
- 
-```{r}
-
-library(dplyr)
-library(ggplot2) 
-library(readxl)
-library(gmodels)
-library(Hmisc)
-library(ggthemes)
-
-#summary(dfCreditCard)
-dfcor <- select_if(dfCreditCard, is.numeric)
-dfcor <- select(dfcor, -ID)
-cm <- cor(dfcor)
-corrplot(cm, method = "number", type = "upper")
-
-table(dfCreditCard$STATUS)
-table(dfCreditCard$LAST)
-table(dfCreditCard$OCCUPATION_TYPE)
-table(dfCreditCard$Approve)
-#chart.Correlation(dfCreditCard, histogram = F, pch = 19)
-
-
-#plot(dfCreditCard)
-
-#status <- as.numeric(dfCreditCard$STATUS)
-#status <- as.numeric(status)
-
-#dfCreditCard$STATUS <- status
-
-#summary(dfCreditCard)
-
-#dfcor <- select_if(dfCreditCard, is.numeric)
-#dfcor <- select(dfcor, -ID)
-#cm <- cor(dfcor)
-#corrplot(cm)
-```
-
-
-
-
-
-
-
-
-
-
-
----
-
----
-
----
-# DRAFT - PAPELES DE TRABAJO
-
-
-
 
 ## Evaluo IDs duplicados en Applications
 ```{r}
