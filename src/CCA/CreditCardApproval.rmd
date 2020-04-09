@@ -16,14 +16,17 @@ https://github.com/ngladkoff/ds-credit-card-approval
 https://www.kaggle.com/rikdifos/credit-card-approval-prediction
 
 
-# Objetivo
+# Introducción
 El presente trabajo busca evaluar si es posible predecir si en base a los datos de una solicitud de tarjeta de crédito tiene alta probabilidad de quedar impaga. 
 
 Para este modelo de predicción se analizarán los datos de la información histórica del comportamiento de pago de los clientes pasados y actuales de la entidad.
 
 La decisión actualmente la toma el Analista de Créditos en base a su experiencia, se busca brindarle una herramienta adicional que facilite su trabajo o sirva de justificación de sus decisiones.
 
-Queremos mejorar el proceso de selección, reduciendo un 15% la incobrabilidad.   
+# Objetivo
+Queremos mejorar el proceso de selección, reduciendo un 10% la incobrabilidad. 
+
+Para esto crearemos una variable Objetivo *Approve* en la que 1 representa un crédito que debería ser aprobado y 0 uno que no debería ser aprobado. Se completará esta variable en los datasets analizando el historial crediticio que tuvieron las solicitudes. 
 
 
 # Datos
@@ -43,34 +46,42 @@ Descripción de los datasets
 
 ***application_record***
 
-| Feature name | Explanation | Remarks | 
+| Nombre | Descripción | Observaciones | 
 |---|---|---|
-| ID | Cliente number ||
-| CODE_GENDER| gender ||
-| FLAG_OWN_CAR | Is there a car ||
-| FLAG_OWN_REALTY | Is there a property ||
-| CNT_CHILDREN | Number of children || 
-| AMT_INCOME_TOTAL | Annual income ||
-| NAME_INCOME_TYPE |	Income category	||
-| NAME_EDUCATION_TYPE | education level ||
-| NAME_FAMILY_STATUS | Marital status ||
-| NAME_HOUSING_TYPE | Way of living ||
-| DAYS_BIRTH | birthday ||
-| DAYS_EMPLOYED | Start date ||
-| FLAG_MOBIL | Is there a mobile phone ||
-| FLAG_WORK_PHONE | Is there a work phone	||
-| FLAG_PHONE | Is there a phone ||
-| FLAG_EMAIL | Is there an email	||
-| OCCUPATION_TYPE | Occupation ||
-| CNT_FAM_MEMBERS | Family size	||
+| ID | Número de Cliente ||
+| CODE_GENDER| Genero ||
+| FLAG_OWN_CAR | Posee automovil propio? ||
+| FLAG_OWN_REALTY | Es propietario? ||
+| CNT_CHILDREN | Cantidad de Hijos || 
+| AMT_INCOME_TOTAL | Ingreso Anual (u$d) ||
+| NAME_INCOME_TYPE |	Tipo de Ingreso	||
+| NAME_EDUCATION_TYPE | Nivel Educativo ||
+| NAME_FAMILY_STATUS | Estado Civil ||
+| NAME_HOUSING_TYPE | Tipo de Vivienda ||
+| DAYS_BIRTH | dias desde la fecha de nacimiento ||
+| DAYS_EMPLOYED | dias desde la fecha de inicio laboral ||
+| FLAG_MOBIL | Tiene Celular? ||
+| FLAG_WORK_PHONE | Dejó Telefono Laboral?	||
+| FLAG_PHONE | Dejó Telefono Particular? ||
+| FLAG_EMAIL | Dejó su Email?	||
+| OCCUPATION_TYPE | Actividad Laboral ||
+| CNT_FAM_MEMBERS | Cantidad Integrantes de la familia	||
 
 ***credit_record***
 
-| Feature name | Explanation | Remarks | 
+| Nombre | Descripción | Observaciones | 
 |---|---|---|
-| ID | client number ||
-| MONTHS_BALANCE | record month | The month of the extracted data is the starting point, backwards, 0 is the current month, -1 is the previous month, and so on
-| STATUS | status | 0: 1-29 days past due 1: 30-59 days past due 2: 60-89 days overdue 3: 90-119 days overdue 4: 120-149 days overdue 5: Overdue or bad debts, write-offs for more than 150 days C: paid off that month X: No loan for the month
+| ID | Número de Cliente ||
+| MONTHS_BALANCE | Mes del registro | El mes al que pertenece el registro es contado hacia atrás, 0 es el mes actual, -1 el anterior y así sucesivamente.
+| STATUS | Estado | 0: 1-29 dias deudor 1: 30-59 dias deudor 2: 60-89 dias deudor 3: 90-119 dias deudor 4: 120-149 dias deudor 5: más de 150 dias deudor C: canceló las deudas ese mes X: sin deudas ese mes.
+
+***Variables generadas al procesar los datos***
+
+| Nombre | Descripción | Observaciones | 
+|---|---|---|
+| AGE | Edad ||
+| YEARS_EMPLOYED | Años en el empleo ||
+| Approved | (Objetivo) El crédito debe o no ser aprobado ||
 
 ## Configuración de ambiente y carga de los datos
 
@@ -1071,6 +1082,30 @@ ggplot(dfCreditCard) +
 ```
 
 Se visualiza una relación entre las variables. Podría ser un posible predictor.
+
+
+# Construcción del Modelo Predictivo
+
+
+
+
+
+
+
+
+
+# Evaluación del Modelo
+
+
+
+# Análisis de Resultados
+
+
+
+# Conclusiones
+
+
+
 
 
 
