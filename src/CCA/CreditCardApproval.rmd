@@ -47,22 +47,22 @@ Descripción de los datasets
 |---|---|---|
 | ID | Cliente number ||
 | CODE_GENDER| gender ||
-| FLAGOWNCAR | Is there a car ||
-| FLAGOWNREALTY | Is there a property ||
+| FLAG_OWN_CAR | Is there a car ||
+| FLAG_OWN_REALTY | Is there a property ||
 | CNT_CHILDREN | Number of children || 
-| AMTINCOMETOTAL | Annual income ||
-| NAMEINCOMETYPE |	Income category	||
-| NAMEEDUCATIONTYPE | education level ||
-| NAMEFAMILYSTATUS | Marital status ||
-| NAMEHOUSINGTYPE | Way of living ||
+| AMT_INCOME_TOTAL | Annual income ||
+| NAME_INCOME_TYPE |	Income category	||
+| NAME_EDUCATION_TYPE | education level ||
+| NAME_FAMILY_STATUS | Marital status ||
+| NAME_HOUSING_TYPE | Way of living ||
 | DAYS_BIRTH | birthday ||
 | DAYS_EMPLOYED | Start date ||
 | FLAG_MOBIL | Is there a mobile phone ||
-| FLAGWORKPHONE | Is there a work phone	||
+| FLAG_WORK_PHONE | Is there a work phone	||
 | FLAG_PHONE | Is there a phone ||
 | FLAG_EMAIL | Is there an email	||
 | OCCUPATION_TYPE | Occupation ||
-| CNTFAMMEMBERS | Family size	||
+| CNT_FAM_MEMBERS | Family size	||
 
 ***credit_record***
 
@@ -351,9 +351,9 @@ print(paste("Solicitudes de tarjetas de crédito con registros en el historial:"
  ***ToDo*** 1ro analizar la variables una a una y 2do analizar si hay relación entre la variable candidata a predictora y la variable objetivo.
  
  
-### 4.1 Análisis de variables númericas
+### 4.1 - Análisis de variables númericas
 
-#### 4.1.1. Variable: CNT_CHILDREN
+#### 4.1.1. - Variable: CNT_CHILDREN
 
 ##### CNT_CHILDREN
 
@@ -405,7 +405,7 @@ Los casos donde la cantidad de hijos sea mayor a 5 supone una falta de pago de a
 Debemos mencionar que esta suposición tiene lógica desde el punto de vista del negocio, por tratarse de outliers, poco representados, podríamos estar sesgando el resultado. Debemos ser cuidadosos, pero podría ser un posible predictor.
 
 
-#### 4.1.2. Variable: AMT_INCOME_TOTAL
+#### 4.1.2. - Variable: AMT_INCOME_TOTAL
 
 ##### AMT_INCOME_TOTAL
 
@@ -454,7 +454,7 @@ El comportamiento que observamos en el gráfico para las solicitudes con mayores
 No parece existir una marcada relación entre los ingresos y la calidad crediticia.
 
 
-#### 4.1.3. Variable: DAYS_BIRTH
+#### 4.1.3. - Variable: DAYS_BIRTH
 
 ##### DAYS_BIRTH
 
@@ -508,7 +508,7 @@ ggplot(dfCreditCard) +
 Parece existir una ligera tendencia a que los créditos mejoren a medida que aumenta la edad. Podría ser un posible predictor.
 
 
-#### 4.1.4. Variable: DAYS_EMPLOYED
+#### 4.1.4. - Variable: DAYS_EMPLOYED
 
 ##### DAYS_EMPLOYED
 
@@ -576,7 +576,7 @@ ggplot(dfCreditCard) +
 La pequeña diferencia notada en el gráfico anterior desaparece en este gráfico, donde no parece haber una clara relación entre la calidad crediticia y la antigüedad laboral.
 
 
-#### 4.1.5. Variable: CNT_FAM_MEMBERS
+#### 4.1.5. - Variable: CNT_FAM_MEMBERS
 
 ##### CNT_FAM_MEMBERS
 
@@ -609,12 +609,12 @@ ggplot(dfCreditCard) +
 
 Para su elección o no como predictor deberíamos evaluar si vamos o no a incluir Cantidad de Hijos, porque solo una de las dos variables sería el predictor por estar correlacionadas entre ellas.
 
-#### 4.1.6. Variable: LAST
+#### 4.1.6. - Variable: LAST
 
 Es una variable que creamos nosotros para expresar el último período del cual tenemos datos, sirvió de variable intermedia para calcular la situación crediticia. No sirve como predictor.
 
 
-### 4.2 Correlación de variables numéricas
+### 4.2 - Correlación de variables numéricas
 
 Mediante un gráfico de correlación de las variables numéricas vamos a analizar como se relacionan entre ellas.
 
@@ -631,7 +631,459 @@ Observamos en el gráfico que Cantidad de Hijos y Cantidad de Miembros Familiare
 No observamos correlaciones significativas entre el resto de las variables.
 
 
-### 4.3 Análisis de variables categóricas
+### 4.3 - Análisis de variables categóricas
+
+#### 4.3.1 - Variable: CODE_GENDER
+
+##### CODE_GENDER
+
+Para conocere la distribución de la muestra graficamos con barras las 2 categorías:
+
+```{r}
+ggplot(dfCreditCard) + 
+  geom_bar(
+    aes(x=CODE_GENDER), 
+    stat="count",
+    fill="steel blue",
+    col= "yellow",
+    alpha= .6) + 
+    labs(title="Barras: Distribución por Genero", x="Genero", y="Cantidad Solicitudes") +
+    coord_flip()
+```
+
+Se observa que la muestra contiene aproximadamente dos tercios de mujeres. Evaluar si es algo que podría sesgar el modelo.
+
+
+##### CODE_GENDER vs APPROVE
+
+Verificamos si podría existir alguna relación entre ambas variables mediante un gráfico de barras apiladas.
+
+```{r}
+ggplot(dfCreditCard) +
+  geom_bar(aes(x=CODE_GENDER, fill=Approve), position="fill", alpha=.5) +
+  labs(title="Creditos Buenos vs Creditos Malos según genero", x="Genero", y="%") +
+  scale_fill_manual(values= c("0"= "red", "1"="green"))
+```
+
+A pesar que la muestra contenía mayor cantidad de solicitudes del sexo femenino, la distribución respecto a la calidad crediticia es similar a las solicitudes presentadas por el sexo masculino. No parece existir una relación entre el genero y la calidad crediticia.
+
+
+#### 4.3.2 - Variable: FLAG_OWN_CAR
+
+##### FLAG_OWN_CAR
+
+Para conocere la distribución de la muestra graficamos con barras las 2 categorías:
+
+```{r}
+ggplot(dfCreditCard) + 
+  geom_bar(
+    aes(x=FLAG_OWN_CAR), 
+    stat="count",
+    fill="steel blue",
+    col= "yellow",
+    alpha= .6) + 
+    labs(title="Barras: Distribución por Auto Propio", x="Auto propio", y="Cantidad Solicitudes") +
+    coord_flip()
+```
+
+
+##### FLAG_OWN_CAR vs APPROVE
+
+Verificamos si podría existir alguna relación entre ambas variables mediante un gráfico de barras apiladas.
+
+```{r}
+ggplot(dfCreditCard) +
+  geom_bar(aes(x=FLAG_OWN_CAR, fill=Approve), position="fill", alpha=.5) +
+  labs(title="Creditos Buenos vs Creditos Malos según si tienen o no Auto Propio", x="No / SI", y="%") +
+  scale_fill_manual(values= c("0"= "red", "1"="green"))
+```
+
+No parece existir una relación entre el Auto Propio y la calidad crediticia.
+
+
+#### 4.3.3 - Variable: FLAG_OWN_REALTY
+
+##### FLAG_OWN_REALTY
+
+Para conocere la distribución de la muestra graficamos con barras las 2 categorías:
+
+```{r}
+ggplot(dfCreditCard) + 
+  geom_bar(
+    aes(x=FLAG_OWN_REALTY), 
+    stat="count",
+    fill="steel blue",
+    col= "yellow",
+    alpha= .6) + 
+    labs(title="Barras: Distribución por Casa Propia", x="Casa propia", y="Cantidad Solicitudes") +
+    coord_flip()
+```
+
+
+##### FLAG_OWN_REALTY vs APPROVE
+
+Verificamos si podría existir alguna relación entre ambas variables mediante un gráfico de barras apiladas.
+
+```{r}
+ggplot(dfCreditCard) +
+  geom_bar(aes(x=FLAG_OWN_REALTY, fill=Approve), position="fill", alpha=.5) +
+  labs(title="Creditos Buenos vs Creditos Malos según si tienen o no Casa Propia", x="NO / SI", y="%") +
+  scale_fill_manual(values= c("0"= "red", "1"="green"))
+```
+
+No parece existir una relación entre el Casa Propia y la calidad crediticia.
+
+
+#### 4.3.4 - Variable: FLAG_MOBIL
+
+##### FLAG_MOBIL
+
+Para conocere la distribución de la muestra graficamos con barras las 2 categorías:
+
+```{r}
+ggplot(dfCreditCard) + 
+  geom_bar(
+    aes(x=FLAG_MOBIL), 
+    stat="count",
+    fill="steel blue",
+    col= "yellow",
+    alpha= .6) + 
+    labs(title="Barras: Distribución por Tenencia Celular", x="Celular", y="Cantidad Solicitudes") +
+    coord_flip()
+```
+
+Se observa que todos las solicitudes tienen Teléfono Celular, no nos sirve para la predicción.
+
+
+#### 4.3.5 - Variable: FLAG_WORK_PHONE
+
+##### FLAG_WORK_PHONE
+
+Para conocere la distribución de la muestra graficamos con barras las 2 categorías:
+
+```{r}
+ggplot(dfCreditCard) + 
+  geom_bar(
+    aes(x=FLAG_WORK_PHONE), 
+    stat="count",
+    fill="steel blue",
+    col= "yellow",
+    alpha= .6) + 
+    labs(title="Barras: Distribución por Telefono Laboral", x="Telefono Laboral", y="Cantidad Solicitudes") +
+    coord_flip()
+```
+
+
+##### FLAG_WORK_PHONE vs APPROVE
+
+Verificamos si podría existir alguna relación entre ambas variables mediante un gráfico de barras apiladas.
+
+```{r}
+ggplot(dfCreditCard) +
+  geom_bar(aes(x=FLAG_WORK_PHONE, fill=Approve), position="fill", alpha=.5) +
+  labs(title="Creditos Buenos vs Creditos Malos según si dejaron o no el teléfono laboral", x="NO / SI", y="%") +
+  scale_fill_manual(values= c("0"= "red", "1"="green"))
+```
+
+Parece existir una ligera diferencia, podría ser un posible predictor.
+
+
+#### 4.3.6 - Variable: FLAG_PHONE
+
+##### FLAG_PHONE
+
+Para conocere la distribución de la muestra graficamos con barras las 2 categorías:
+
+```{r}
+ggplot(dfCreditCard) + 
+  geom_bar(
+    aes(x=FLAG_PHONE), 
+    stat="count",
+    fill="steel blue",
+    col= "yellow",
+    alpha= .6) + 
+    labs(title="Barras: Distribución por Telefono Personal", x="Telefono Personal", y="Cantidad Solicitudes") +
+    coord_flip()
+```
+
+
+##### FLAG_PHONE vs APPROVE
+
+Verificamos si podría existir alguna relación entre ambas variables mediante un gráfico de barras apiladas.
+
+```{r}
+ggplot(dfCreditCard) +
+  geom_bar(aes(x=FLAG_PHONE, fill=Approve), position="fill", alpha=.5) +
+  labs(title="Creditos Buenos vs Creditos Malos según si dejaron o no el teléfono personal", x="NO / SI", y="%") +
+  scale_fill_manual(values= c("0"= "red", "1"="green"))
+```
+
+No parece existir una relación entre el teléfono personal y la calidad crediticia.
+
+
+#### 4.3.7 - Variable: FLAG_EMAIL
+
+##### FLAG_EMAIL
+
+Para conocere la distribución de la muestra graficamos con barras las 2 categorías:
+
+```{r}
+ggplot(dfCreditCard) + 
+  geom_bar(
+    aes(x=FLAG_EMAIL), 
+    stat="count",
+    fill="steel blue",
+    col= "yellow",
+    alpha= .6) + 
+    labs(title="Barras: Distribución por Email", x="Email", y="Cantidad Solicitudes") +
+    coord_flip()
+```
+
+
+##### FLAG_EMAIL vs APPROVE
+
+Verificamos si podría existir alguna relación entre ambas variables mediante un gráfico de barras apiladas.
+
+```{r}
+ggplot(dfCreditCard) +
+  geom_bar(aes(x=FLAG_EMAIL, fill=Approve), position="fill", alpha=.5) +
+  labs(title="Creditos Buenos vs Creditos Malos según si dejaron o no el email", x="NO / SI", y="%") +
+  scale_fill_manual(values= c("0"= "red", "1"="green"))
+```
+
+Parece existir una muy ligera diferencia, podría ser un posible predictor.
+
+
+#### 4.3.8 - Variable: NAME_INCOME_TYPE
+
+##### NAME_INCOME_TYPE
+
+Para conocere la distribución de la muestra graficamos con barras diferentes categorías:
+
+```{r}
+catIncomeType <- table(dfCreditCard$NAME_INCOME_TYPE)
+dfCatIncomeType <- as.data.frame(catIncomeType)
+names(dfCatIncomeType) <- c("Categoria","Cantidad")
+
+# Ordenamos
+dfCatIncomeType <- transform(dfCatIncomeType, Categoria=reorder(Categoria, Cantidad))
+
+ggplot(dfCatIncomeType) + 
+  geom_bar(
+    aes(x=Categoria, y=Cantidad), 
+    stat="identity",
+    fill="steel blue",
+    col= "yellow",
+    alpha= .6) + 
+    labs(title="Barras: Distribución por Tipo de Ingreso", x="Categoría", y="Cantidad Solicitudes") +
+    coord_flip()
+```
+
+
+##### NAME_INCOME_TYPE vs APPROVE
+
+Verificamos si podría existir alguna relación entre ambas variables mediante un gráfico de barras apiladas.
+
+```{r}
+ggplot(dfCreditCard) +
+  geom_bar(aes(x=NAME_INCOME_TYPE, fill=Approve), position="fill", alpha=.5) +
+  labs(title="Creditos Buenos vs Creditos Malos según Tipo de Ingreso", x="Categoría", y="%") +
+  scale_fill_manual(values= c("0"= "red", "1"="green"))
+```
+
+Podría existir alguna relación entre las variables, aunque la diferencia observada en la categoría estudiantes debe ser tenida en cuenta en el contexto observado en el gráfico anterior, donde vemos que las solicitudes de estudiantes son insignificantes en la muestra.
+
+
+#### 4.3.9 - Variable: NAME_EDUCATION_TYPE
+
+##### NAME_EDUCATION_TYPE
+
+Para conocere la distribución de la muestra graficamos con barras diferentes categorías:
+
+```{r}
+catIncomeType <- table(dfCreditCard$NAME_EDUCATION_TYPE)
+dfCatIncomeType <- as.data.frame(catIncomeType)
+names(dfCatIncomeType) <- c("Categoria","Cantidad")
+
+# Ordenamos
+dfCatIncomeType <- transform(dfCatIncomeType, Categoria=reorder(Categoria, Cantidad))
+
+ggplot(dfCatIncomeType) + 
+  geom_bar(
+    aes(x=Categoria, y=Cantidad), 
+    stat="identity",
+    fill="steel blue",
+    col= "yellow",
+    alpha= .6) + 
+    labs(title="Barras: Distribución por Nivel de Educación", x="Categoría", y="Cantidad Solicitudes") +
+    coord_flip()
+```
+
+
+##### NAME_EDUCATION_TYPE vs APPROVE
+
+Verificamos si podría existir alguna relación entre ambas variables mediante un gráfico de barras apiladas.
+
+```{r}
+ggplot(dfCreditCard) +
+  geom_bar(aes(x=NAME_EDUCATION_TYPE, fill=Approve), position="fill", alpha=.5) +
+  labs(title="Creditos Buenos vs Creditos Malos según Nivel de Educación", x="Categoría", y="%") +
+  scale_fill_manual(values= c("0"= "red", "1"="green"))
+```
+
+
+En esta variable visualizamos una relación mas marcada entre el nivel de educación y la calidad crediticia. Podría ser un posible predictor.
+
+
+#### 4.3.10 - Variable: NAME_FAMILY_STATUS
+
+##### NAME_FAMILY_STATUS
+
+Para conocere la distribución de la muestra graficamos con barras diferentes categorías:
+
+```{r}
+catIncomeType <- table(dfCreditCard$NAME_FAMILY_STATUS)
+dfCatIncomeType <- as.data.frame(catIncomeType)
+names(dfCatIncomeType) <- c("Categoria","Cantidad")
+
+# Ordenamos
+dfCatIncomeType <- transform(dfCatIncomeType, Categoria=reorder(Categoria, Cantidad))
+
+ggplot(dfCatIncomeType) + 
+  geom_bar(
+    aes(x=Categoria, y=Cantidad), 
+    stat="identity",
+    fill="steel blue",
+    col= "yellow",
+    alpha= .6) + 
+    labs(title="Barras: Distribución por Estado Civil", x="Categoría", y="Cantidad Solicitudes") +
+    coord_flip()
+```
+
+
+##### NAME_FAMILY_STATUS vs APPROVE
+
+Verificamos si podría existir alguna relación entre ambas variables mediante un gráfico de barras apiladas.
+
+```{r}
+ggplot(dfCreditCard) +
+  geom_bar(aes(x=NAME_FAMILY_STATUS, fill=Approve), position="fill", alpha=.5) +
+  labs(title="Creditos Buenos vs Creditos Malos según Estado Civil", x="Categoría", y="%") +
+  scale_fill_manual(values= c("0"= "red", "1"="green")) +
+    coord_flip()
+```
+
+
+Se visualiza una ligera relación entre las variables. Podría ser un posible predictor.
+
+
+#### 4.3.11 - Variable: NAME_HOUSING_TYPE
+
+##### NAME_HOUSING_TYPE
+
+Para conocere la distribución de la muestra graficamos con barras diferentes categorías:
+
+```{r}
+catIncomeType <- table(dfCreditCard$NAME_HOUSING_TYPE)
+dfCatIncomeType <- as.data.frame(catIncomeType)
+names(dfCatIncomeType) <- c("Categoria","Cantidad")
+
+# Ordenamos
+dfCatIncomeType <- transform(dfCatIncomeType, Categoria=reorder(Categoria, Cantidad))
+
+ggplot(dfCatIncomeType) + 
+  geom_bar(
+    aes(x=Categoria, y=Cantidad), 
+    stat="identity",
+    fill="steel blue",
+    col= "yellow",
+    alpha= .6) + 
+    labs(title="Barras: Distribución por Tipo de Vivienda", x="Categoría", y="Cantidad Solicitudes") +
+    coord_flip()
+```
+
+
+##### NAME_HOUSING_TYPE vs APPROVE
+
+Verificamos si podría existir alguna relación entre ambas variables mediante un gráfico de barras apiladas.
+
+```{r}
+ggplot(dfCreditCard) +
+  geom_bar(aes(x=NAME_HOUSING_TYPE, fill=Approve), position="fill", alpha=.5) +
+  labs(title="Creditos Buenos vs Creditos Malos según Tipo Vivienda", x="Categoría", y="%") +
+  scale_fill_manual(values= c("0"= "red", "1"="green")) +
+    coord_flip()
+```
+
+
+Se visualiza una relación entre las variables. Podría ser un posible predictor.
+
+
+#### 4.3.12 - Variable: OCCUPATION_TYPE
+
+##### OCCUPATION_TYPE
+
+Como se observó en el summary, la categoría tiene datos incompletos.
+```{r}
+summary(dfCreditCard$OCCUPATION_TYPE)
+```
+
+No podemos consultar a negocio si son solicitudes incompletas o representa la categoría "Otros". A los fines del ejercicio se decide etiquetarlos como "Otros".
+
+```{r}
+levels(dfCreditCard$OCCUPATION_TYPE)[levels(dfCreditCard$OCCUPATION_TYPE) == ""] <- "Other"
+summary(dfCreditCard$OCCUPATION_TYPE)
+```
+
+Para conocere la distribución de la muestra graficamos con barras diferentes categorías:
+
+```{r}
+catIncomeType <- table(dfCreditCard$OCCUPATION_TYPE)
+dfCatIncomeType <- as.data.frame(catIncomeType)
+names(dfCatIncomeType) <- c("Categoria","Cantidad")
+
+# Ordenamos
+dfCatIncomeType <- transform(dfCatIncomeType, Categoria=reorder(Categoria, Cantidad))
+
+ggplot(dfCatIncomeType) + 
+  geom_bar(
+    aes(x=Categoria, y=Cantidad), 
+    stat="identity",
+    fill="steel blue",
+    col= "yellow",
+    alpha= .6) + 
+    labs(title="Barras: Distribución por Actividad Laboral", x="Categoría", y="Cantidad Solicitudes") +
+    coord_flip()
+```
+
+En esta variable existen muchas categorías, y según la bibliografía la regresión logística tiene problemas con variables categóricas con muchas categorías. Revisar si afecta o no al modelo.
+
+##### OCCUPATION_TYPE vs APPROVE
+
+Verificamos si podría existir alguna relación entre ambas variables mediante un gráfico de barras apiladas.
+
+```{r}
+ggplot(dfCreditCard) +
+  geom_bar(aes(x=OCCUPATION_TYPE, fill=Approve), position="fill", alpha=.5) +
+  labs(title="Creditos Buenos vs Creditos Malos según Actividad Laboral", x="Categoría", y="%") +
+  scale_fill_manual(values= c("0"= "red", "1"="green")) +
+    coord_flip()
+```
+
+Se visualiza una relación entre las variables. Podría ser un posible predictor.
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
