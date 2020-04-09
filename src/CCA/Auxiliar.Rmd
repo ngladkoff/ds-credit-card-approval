@@ -1,0 +1,207 @@
+---
+title: "Auxiliar"
+output: html_notebook
+---
+
+
+---
+
+### Sacado de mas arriba
+
+```{r}
+ggplot(dfCreditCard) +
+    geom_point(aes(x=Approve, y=CNT_CHILDREN), color="steel blue")
+```
+
+
+En base al análisis de los datos, podríamos inferir que cuando la cantidad de hijos es mayor a 5, el porcentaje de pagos disminuye, por ende la cantidad de desaprobaciones aumenta.
+
+Por fuera de esa concentración detectamos valores bien marcados que deberemos determinar cómo tratarlos.
+
+Podemos confirmar que el valor general observado anteriormente mantiene el nivel de concentración para la cantidad de hijos en relación al pago dentro su historial crediticio. 
+
+
+***ToDo*** definir que hacer con los outliers. si se agregan reemplazando el valor por el promedio o se descartan.
+
+
+
+
+
+
+
+
+
+Observaremos para el análisis en cuestión la correlación de los valores númericos del dataset unificado.
+
+En el gráfico de correlación podemos identificar y destacar un coeficiente de correlación positiva entre la *CNT_CHILDREN* y *CNT_FAM_MEMBERS*. Esta es una relación presente entre la cantidad de hijos y la cantidad de miembros de una familia.
+
+También hemos observado el coeficiente de correlación negativo hayado en la relación entre *DAYS_BIRTH* y *DAYS_EMPLOYED*. 
+
+***ToDo*** mejorar la justificación desde el lado del negocio
+
+***ToDo*** Estas variables numéricas no fueron limpiadas todavía, no podemos hacer todavía la correlación porque tiene valores inválidos. ***Esto hay que hacerlo mas abajo***
+
+```{r}
+dfcor <- select_if(dfCreditCard, is.numeric)
+dfcor <- select(dfcor, -ID)
+cm <- cor(dfcor)
+corrplot(cm, method = "number", type = "upper")
+```
+
+
+
+
+
+
+---
+# DRAFT - PAPELES DE TRABAJO
+
+```{r}
+
+#ggplot(dfCreditCard) +
+#    geom_point(aes(x=Approve, y=CNT_FAM_MEMBERS), color="steel blue")
+
+#barplot(table(dfCreditCard$STATUS))
+
+#barplot(table(dfCreditCard$OCCUPATION_TYPE))
+
+##### ☺grafico 19 cat barras horizontales
+###### mapa de calor / covid
+
+```
+
+
+```{r}
+#library(purrr)
+#library(tidyr)
+#library(ggplot2)
+
+#mtcars %>%
+#  keep(is.numeric) %>% 
+#  gather() %>% 
+#  ggplot(aes(value)) +
+#    facet_wrap(~ key, scales = "free") +
+#    geom_histogram()
+
+```
+
+## Evaluo IDs duplicados en Applications
+```{r}
+dfAppIds <- data.frame(table(dfApplications$ID))
+str(dfAppIds)
+summary(dfAppIds)
+
+```
+
+## Analisis de duplicados
+```{r}
+cUniAppIds <- dim(dfApplications[unique(dfApplications$ID),])[1]
+cDupAppIds <- dim(dfApplications[duplicated(dfApplications$ID),])[1]
+cDupAppRecord <- dim(dfApplications[duplicated(dfApplications),])[1]
+dfDupAppIds <- dfApplications[duplicated(dfApplications$ID),]
+cAppIds <- dim(dfApplications)[1]
+
+print(paste("IDs unicos:", cUniAppIds))
+print(paste("IDs duplicados:", cDupAppIds))
+print(paste("Records duplicados: ", cDupAppRecord))
+print(paste("Total:", cAppIds))
+print(paste("Duplicados: %", (round((cDupAppIds*100/cAppIds), digits=2))))
+
+```
+
+## Hicimos una limpieza del 1er dataset
+```{r}
+dfDupAppIds2 <- data.frame(dfDupAppIds$ID)
+dfDupIds <- sqldf("SELECT distinct ID FROM dfApplications WHERE ID in dfDupAppIds2")
+print(dfDupIds)
+
+dfAppCleaned <- sqldf("SELECT * FROM dfApplications WHERE ID NOT in dfDupAppIds2")
+cNewTotal <- dim(dfAppCleaned)[1]
+print(cAppIds - cNewTotal)
+```
+
+## Obtener predictor desde Creditos
+
+```{r}
+
+dfCredIdMonth <- sqldf("SELECT ID, MAX(MONTHS_BALANCE) as LAST FROM dfCredit GROUP BY ID order by LAST")
+summary(dfCredIdMonth)
+
+```
+
+```{r}
+dfCreditCleaned <- sqldf("SELECT t1.ID, t1.LAST, t2.STATUS FROM dfCredIdMonth t1 JOIN dfCredit t2 ON t1.ID = t2.ID and t1.LAST = t2.MONTHS_BALANCE")
+summary(dfCreditCleaned)
+```
+
+```{r}
+dfCreditCleaned$STATUS <- ifelse(dfCreditCleaned$STATUS == 'C' | dfCreditCleaned$STATUS == 'X', 1, 0)
+#dfCreditCleaned$STATUS <- factor(dfCreditCleaned$STATUS, ordered=FALSE)
+```
+
+```{r}
+summary(dfCreditCleaned)
+```
+
+
+```{r}
+
+#dfCreditCard <- merge(dfApplications, dfCreditCleaned, by="ID")
+dfCreditCard <- sqldf("SELECT t1.ID, t1.CODE_GENDER, t1.FLAG_OWN_CAR, t1.FLAG_OWN_REALTY, t1.CNT_CHILDREN, t1.AMT_INCOME_TOTAL, t1.NAME_INCOME_TYPE, t1.NAME_EDUCATION_TYPE, t1.NAME_FAMILY_STATUS, t1.NAME_HOUSING_TYPE, t1.DAYS_BIRTH, t1.DAYS_EMPLOYED, t1.FLAG_MOBIL, t1.FLAG_PHONE, t1.FLAG_WORK_PHONE, t1.FLAG_EMAIL, t1.OCCUPATION_TYPE, t1.CNT_FAM_MEMBERS, t2.LAST, t2.STATUS FROM dfApplications t1 JOIN dfCreditCleaned t2 ON t1.ID = t2.ID")
+
+```
+
+
+```{r}
+summary(dfCreditCard)
+
+dim(dfCreditCard)[1]
+```
+
+```{r}
+str(dfCreditCard)
+```
+
+```{r}
+dfSelect <- select(dfCreditCard, OCCUPATION_TYPE, STATUS)
+plot(dfSelect)
+
+dfSelect <- select(dfCreditCard, NAME_EDUCATION_TYPE, STATUS)
+plot(dfSelect)
+
+dfSelect <- select(dfCreditCard, DAYS_EMPLOYED, STATUS)
+plot(dfSelect)
+
+#ggplot(dfCreditCard) +
+#    geom_boxplot(aes(x=OCCUPATION_TYPE, y=STATUS))
+
+```
+
+```{r}
+#mydata <- read.csv("https://stats.idre.ucla.edu/stat/data/binary.csv")
+#summary(mydata)
+IV <- create_infotables(data=dfCreditCard, y="STATUS", bins=10, parallel=FALSE)
+```
+
+
+```{r}
+
+dfcor <- select_if(dfCreditCard, is.numeric)
+dfcor <- select(dfcor, -ID)
+cm <- cor(dfcor)
+corrplot(cm)
+
+```
+
+
+```{r}
+ggplot(dfCreditCard) +
+    geom_boxplot(aes(x=DAYS_BIRTH, y=CNT_FAM_MEMBERS))
+```
+
+
+## Merge Data (antes de mergear la data hay que limpiarla! o hacer un pivot de los meses? los meses llegan hasta -60 -> sacar conclusiones y ajustar a una columna? -> ejemplo: antigúedad del prestamo o credit record)
+```{r}
+dfCreditCard <- merge(dfApplications, dfCredit, by="ID")
+```
+
