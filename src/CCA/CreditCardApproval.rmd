@@ -332,8 +332,11 @@ str(dfCreditCard)
 summary(dfCreditCard)
 ```
 
+
 ## 3.4 - Conclusiones de la unificación
 
+Luego de unir ambos datasets observamos que la cantidad de registros de clientes con información histórica ha disminuido. Esto se debe a que no todos los clientes registrados poseen un historial crediticio. Para los fines de este análisis, aceptaremos cómo válida esta reducción.
+ 
  ***ToDo*** se perdieron registros! quedó mucho menor el set de datos, hay que mencionarlo
 
 
@@ -341,7 +344,98 @@ summary(dfCreditCard)
 
  ***ToDo*** 1ro analizar la variables una a una y 2do analizar si hay relación entre la variable candidata a predictora y la variable objetivo.
  
+```{r}
+str(dfCreditCard)
+```
  
+```{r}
+
+#ggplot(dfCreditCard) + 
+#  geom_density(aes(x=CNT_FAM_MEMBERS)) + scale_x_continuous(labels=number)
+
+#cor(dfCreditCard$LAST, dfCreditCard$DAYS_BIRTH)
+
+
+
+#set.seed(232)
+#seleccion <- runif(dim(dfCreditCard)[1])
+#dftrain <- select(dfCreditCard, STATUS, Approve)[seleccion<0.8,]
+#summary(dftrain)
+#dftest <- select(dfCreditCard, salesLast3Mon, salesThisMon)[seleccion >= 0.8,] 
+
+#library(purrr)
+#library(tidyr)
+#library(ggplot2)
+
+#mtcars %>%
+#  keep(is.numeric) %>% 
+#  gather() %>% 
+#  ggplot(aes(value)) +
+#    facet_wrap(~ key, scales = "free") +
+#    geom_histogram()
+
+
+#ggplot(dfCreditCard) +
+    geom_point(aes(x=Approve, y=CNT_FAM_MEMBERS), color="steel blue")
+
+#barplot(table(dfCreditCard$STATUS))
+
+#barplot(table(dfCreditCard$OCCUPATION_TYPE))
+
+
+ggplot(dfCreditCard) + 
+  geom_histogram(aes(x=CNT_FAM_MEMBERS), binwidth=1, fill="steel blue")
+
+ggplot(dfCreditCard) + 
+  geom_bar(aes(x=CNT_FAM_MEMBERS), fill="steel blue")
+
+ggplot(dfCreditCard) + 
+  geom_boxplot(aes(x=STATUS, y=CNT_FAM_MEMBERS))
+
+ggplot(dfCreditCard) + 
+  geom_boxplot(aes(x=Approve, y=CNT_FAM_MEMBERS))
+
+
+```
+ 
+ 
+ 
+```{r}
+
+library(dplyr)
+library(ggplot2) 
+library(readxl)
+library(gmodels)
+library(Hmisc)
+library(ggthemes)
+
+#summary(dfCreditCard)
+dfcor <- select_if(dfCreditCard, is.numeric)
+dfcor <- select(dfcor, -ID)
+cm <- cor(dfcor)
+corrplot(cm, method = "number", type = "upper")
+
+table(dfCreditCard$STATUS)
+table(dfCreditCard$LAST)
+table(dfCreditCard$OCCUPATION_TYPE)
+table(dfCreditCard$Approve)
+#chart.Correlation(dfCreditCard, histogram = F, pch = 19)
+
+
+#plot(dfCreditCard)
+
+#status <- as.numeric(dfCreditCard$STATUS)
+#status <- as.numeric(status)
+
+#dfCreditCard$STATUS <- status
+
+#summary(dfCreditCard)
+
+#dfcor <- select_if(dfCreditCard, is.numeric)
+#dfcor <- select(dfcor, -ID)
+#cm <- cor(dfcor)
+#corrplot(cm)
+```
 
 
 
