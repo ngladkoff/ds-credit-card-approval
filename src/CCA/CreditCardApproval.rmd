@@ -250,28 +250,28 @@ No se observan números fuera de rango dentro de la variable MONTHS_BALANCE.
 Para analizar correctamente la variable STATUS vamos a necesitar reducir los registros a uno por ID previamente.
 
 
-# 2 - Reducción dataset Credits
+## 2 - Reducción dataset Credits
 
-## 2.1 - Identificar IDs únicos
+### 2.1 - Identificar IDs únicos
 ```{r}
 dfCredIds <- data.frame(table(dfCredits$ID))
 ```
 
 
-### 2.1.1 - Estructura
+#### 2.1.1 - Estructura
 ```{r}
 str(dfCredIds)
 ```
 
 El dataset Credits cuenta con 45985 IDs únicos, es decir que del dataset de Applications de poco más de 438000 registros solo tenemos información de algunos.
 
-### 2.1.2 - Summary
+#### 2.1.2 - Summary
 ```{r}
 summary(dfCredIds)
 ```
 
 
-## 2.2 - Reducir registros
+### 2.2 - Reducir registros
 
 Se decidió que vamos a tomar el estado del último més del que tenemos información. 
 
@@ -315,25 +315,25 @@ summary(dfCreditsReduced)
 Con esta nueva definición, tenemos un 31% de créditos "malos", que vamos a utilizar para entrenar el modelo.
 
 
-# 3 - Unificar los datasets
+## 3 - Unificar los datasets
 
-## 3.1 - Unificar
+### 3.1 - Unificar
 ```{r}
 dfCreditCard <- merge(dfApplicationsCleaned, dfCreditsReduced, by="ID")
 ```
 
-## 3.2 - Estructura
+### 3.2 - Estructura
 ```{r}
 str(dfCreditCard)
 ```
 
-## 3.3 - Summary
+### 3.3 - Summary
 ```{r}
 summary(dfCreditCard)
 ```
 
 
-## 3.4 - Conclusiones de la unificación
+### 3.4 - Conclusiones de la unificación
 
 Luego de unir ambos datasets observamos que la cantidad de registros de clientes que poseen información histórica ha disminuido. 
 
@@ -346,43 +346,321 @@ print(paste("Registros en el historial:", dim(dfCreditsReduced)[1]))
 print(paste("Solicitudes de tarjetas de crédito con registros en el historial:", dim(dfCreditCard)[1]))
 ```
 
-# 4 - Análisis de variables sobre dataset unificado
+## 4 - Análisis de variables sobre dataset unificado
 
  ***ToDo*** 1ro analizar la variables una a una y 2do analizar si hay relación entre la variable candidata a predictora y la variable objetivo.
  
  
-## 4.1 Análisis de variables númericas
+### 4.1 Análisis de variables númericas
 
-Observaremos para el análisis en cuestión la correlación de los valores númericos del dataset unificado.
+#### 4.1.1. Variable: CNT_CHILDREN
 
-En el gráfico de correlación podemos identificar y destacar un coeficiente de correlación positiva entre la *CNT_CHILDREN* y *CNT_FAM_MEMBERS*. Esta es una relación presente entre la cantidad de hijos y la cantidad de miembros de una familia.
-
-También hemos observado el coeficiente de correlación negativo hayado en la relación entre *DAYS_BIRTH* y *DAYS_EMPLOYED*.
-
-***ToDo*** mejorar la justificación desde el lado del negocio
-
-```{r}
-dfcor <- select_if(dfCreditCard, is.numeric)
-dfcor <- select(dfcor, -ID)
-cm <- cor(dfcor)
-corrplot(cm, method = "number", type = "upper")
-```
-
-
-### 4.1.1. Variable: CNT_CHILDREN
-
-### CNT_CHILDREN
+##### CNT_CHILDREN
 
 En relación a la variable *CNT_CHILDREN* observaremos la distribución de la cantidad total de hijos en cada barra del siguiente gráfico:
 
 ```{r}
 ggplot(dfCreditCard) + 
-  geom_bar(aes(x=CNT_CHILDREN), fill="steel blue", width = 0.5)
+  geom_histogram(
+    aes(x=CNT_CHILDREN), 
+    fill="steel blue",
+    col= "yellow",
+    alpha= .6,
+    binwidth = 1) + 
+  labs(title="Histograma: Cantidad de hijos en Solicitudes", x="Cantidad Hijos", y="Cantidad Solicitudes")
 ```
 
-Se observa una marcada concentración respeto de la cantidad de hijos cuando dicho valor es menor a 5.
+Se observa una marcada concentración respeto de la cantidad de hijos cuando dicho valor es menor o igual a 2.
 
-Podemos confirmar que el valor general observado anteriormente mantiene el nivel de concentración para la cantidad de hijos en relación al pago dentro su historial crediticio. 
+```{r}
+summary(dfCreditCard$CNT_CHILDREN)
+```
+
+Se observa en el summary la presencia de valores cercanos a 20, pero como puede observarse en el gráfico anterior son outliers, no hay concentración en esas cantidades.
+
+##### CNT_CHILDREN vs APPROVE
+
+Vamos a utilizar el gráfico BoxPlot para tratar de entender como se relacionan la variable CNT_CHILDREN y nuestra variable Objetivo.
+
+```{r}
+ggplot(dfCreditCard) + 
+  geom_boxplot(aes(x=Approve, y=CNT_CHILDREN), outlier.color = "red", col="yellow", fill="steel blue", alpha=0.6) +
+  labs(title="BoxPlot: Calidad Crediticia según Cantidad de Hijos", x="Credito Malo (0) o Bueno (1)", y="Cantidad de Hijos")
+```
+
+Observamos que la cantidad de casos aprobados en comparación de los que no, se mantienen en valores similares. Esto sucede hasta aproximadamente los 5 hijos. Luego de ese valor, aumenta la cantidad de casos con falta de pago en su historial crediticio.
+
+Representando los datos de una manera diferente, podemos observar que la inferencia realizada anteriormente es consistente.
+
+```{r}
+ggplot(dfCreditCard) +
+  geom_bar(aes(x=CNT_CHILDREN, fill=Approve), position="fill", alpha=.5) +
+  labs(title="Creditos Buenos vs Creditos Malos según cantidad de hijos", x="Cantidad de Hijos", y="%") +
+  scale_fill_manual(values= c("0"= "red", "1"="green"))
+```
+
+
+Los casos donde la cantidad de hijos sea mayor a 5 supone una falta de pago de acuerdo al criterio mencionado previamente.
+
+Debemos mencionar que esta suposición tiene lógica desde el punto de vista del negocio, por tratarse de outliers, poco representados, podríamos estar sesgando el resultado. Debemos ser cuidadosos, pero podría ser un posible predictor.
+
+
+#### 4.1.2. Variable: AMT_INCOME_TOTAL
+
+##### AMT_INCOME_TOTAL
+
+En relación a la variable *AMT_INCOME_TOTAL* observaremos su distribuciónen el siguiente gráfico:
+
+```{r}
+ggplot(dfCreditCard) + 
+  geom_histogram(
+    aes(x=AMT_INCOME_TOTAL), 
+    fill="steel blue",
+    col= "yellow",
+    alpha= .6, bins=10) + 
+  labs(title="Histograma: Ingresos", x="Ingreso anual (u$d)", y="Cantidad Solicitudes")
+```
+
+Se observa una marcada concentración de solicitudes en un rango medio de ingresos anuales. si bien se observa la presencia de algunas solicitudes con ingresos muy superiores.
+
+```{r}
+summary(dfCreditCard$AMT_INCOME_TOTAL)
+```
+
+Dentro del rango de los 120000 y los 225000 dolares anuales de ingreso se concentra el 50% de las solicitudes de tarjeta de crédito. Vemos la presencia de valores muy inferiores y muy superiores.
+
+
+##### AMT_INCOME_TOTAL vs APPROVE
+
+Vamos a utilizar el gráfico BoxPlot para tratar de entender como se relacionan la variable AMT_INCOME_TOTAL y nuestra variable Objetivo.
+
+```{r}
+ggplot(dfCreditCard) + 
+  geom_boxplot(aes(x=Approve, y=AMT_INCOME_TOTAL), outlier.color = "red", col="yellow", fill="steel blue", alpha=0.6) +
+  labs(title="BoxPlot: Calidad Crediticia según Ingresos Anuales", x="Credito Malo (0) o Bueno (1)", y="Ingresos (u$d)")
+```
+
+No observamos diferencias significativas en este gráfico. Vamos a intentar representarlo de manera diferente.
+
+```{r}
+ggplot(dfCreditCard) +
+  geom_histogram(aes(x=AMT_INCOME_TOTAL, fill=Approve), position="fill", alpha=.5, bins=10) +
+  labs(title="Creditos Buenos vs Creditos Malos según Ingresos Anuales", x="Ingresos (u$d)", y="%") +
+  scale_fill_manual(values= c("0"= "red", "1"="green"))
+```
+
+El comportamiento que observamos en el gráfico para las solicitudes con mayores ingresos parece ser ruido por la baja cantidad de datos con los que esa categoría está representada en la muestra. 
+
+No parece existir una marcada relación entre los ingresos y la calidad crediticia.
+
+
+#### 4.1.3. Variable: DAYS_BIRTH
+
+##### DAYS_BIRTH
+
+```{r}
+summary(dfCreditCard$DAYS_BIRTH)
+```
+
+Como se observa, está expresado en días y en negativo, vamos a convertirlo a una escala a la que estamos más acostumbrados a ver, que es expresar la edad en años.
+
+```{r}
+dfCreditCard$AGE <- (dfCreditCard$DAYS_BIRTH * -1) %/% 365 
+summary(dfCreditCard$AGE)
+```
+
+Expresado de esta manera podemos observar que los valores son razonables. 
+
+Observaremos la distribución en el siguiente gráfico:
+
+```{r}
+ggplot(dfCreditCard) + 
+  geom_histogram(
+    aes(x=AGE), 
+    fill="steel blue",
+    col= "yellow",
+    alpha= .6, bins=10) + 
+  labs(title="Histograma: Edades", x="Años", y="Cantidad Solicitudes")
+```
+
+Observamos una distribución con cierta semejanza a una campana de Gauss (Normal). 
+ 
+
+##### AGE vs APPROVE
+
+Vamos a utilizar el gráfico BoxPlot para tratar de entender como se relacionan la variable AGE y nuestra variable Objetivo.
+
+```{r}
+ggplot(dfCreditCard) + 
+  geom_boxplot(aes(x=Approve, y=AGE), outlier.color = "red", col="yellow", fill="steel blue", alpha=0.6) +
+  labs(title="BoxPlot: Calidad Crediticia según Edad", x="Credito Malo (0) o Bueno (1)", y="Años")
+```
+
+No observamos diferencias significativas en este gráfico. Vamos a intentar representarlo de manera diferente.
+
+```{r}
+ggplot(dfCreditCard) +
+  geom_histogram(aes(x=AGE, fill=Approve), position="fill", alpha=.5, binwidth = 10) +
+  labs(title="Creditos Buenos vs Creditos Malos según Edades", x="Años", y="%") +
+  scale_fill_manual(values= c("0"= "red", "1"="green"))
+```
+
+Parece existir una ligera tendencia a que los créditos mejoren a medida que aumenta la edad. Podría ser un posible predictor.
+
+
+#### 4.1.4. Variable: DAYS_EMPLOYED
+
+##### DAYS_EMPLOYED
+
+```{r}
+summary(dfCreditCard$DAYS_EMPLOYED)
+```
+
+Como se observa, está expresado en días y en negativo, vamos a convertirlo a una escala a la que estamos más acostumbrados a ver, que es expresarlo en años. Se observan también valores positivos, que se les va a tener que dar un tratamiento.
+
+```{r}
+dfCreditCard$YEARS_EMPLOYED <- (dfCreditCard$DAYS_EMPLOYED * -1) %/% 365 
+summary(dfCreditCard$YEARS_EMPLOYED)
+```
+
+Expresado de esta manera podemos observar edades negativas. 
+
+Buscamos estos valores:
+
+```{r}
+dfNegatives <- filter(dfCreditCard, YEARS_EMPLOYED < 0)
+str(dfNegatives)
+```
+
+Observamos un número importante de registros con este dato inválido. Como no podemos consultar a negocio que significan esos valores suponemos que "antigüedad laboral desconocida", los vamos a reemplazar por la mediana que es más representativa de la antigüedad que el promedio, justamente por la presencia de estos valores.
+
+```{r}
+dfCreditCard$YEARS_EMPLOYED[dfCreditCard$YEARS_EMPLOYED < 0] <- median(dfCreditCard$YEARS_EMPLOYED)
+
+summary(dfCreditCard$YEARS_EMPLOYED)
+```
+
+Ahora los valores parecen razonables.
+
+Observaremos la distribución en el siguiente gráfico:
+
+```{r}
+ggplot(dfCreditCard) + 
+  geom_histogram(
+    aes(x=YEARS_EMPLOYED), 
+    fill="steel blue",
+    col= "yellow",
+    alpha= .6, bins=10) + 
+  labs(title="Histograma: Antigüedad Laboral", x="Años", y="Cantidad Solicitudes")
+```
+
+##### YEARS_EMPLOYED vs APPROVE
+
+Vamos a utilizar el gráfico BoxPlot para tratar de entender como se relacionan la variable YEARS_EMPLOYED y nuestra variable Objetivo.
+
+```{r}
+ggplot(dfCreditCard) + 
+  geom_boxplot(aes(x=Approve, y=YEARS_EMPLOYED), outlier.color = "red", col="yellow", fill="steel blue", alpha=0.6) +
+  labs(title="BoxPlot: Calidad Crediticia según Antigüedad Laboral", x="Credito Malo (0) o Bueno (1)", y="Años")
+```
+
+Se observan algunas pequeñas diferencias en este gráfico. Vamos a intentar representarlo de manera diferente.
+
+```{r}
+ggplot(dfCreditCard) +
+  geom_histogram(aes(x=YEARS_EMPLOYED, fill=Approve), position="fill", alpha=.5, binwidth = 10) +
+  labs(title="Creditos Buenos vs Creditos Malos según Antigüedad Laboral", x="Años", y="%") +
+  scale_fill_manual(values= c("0"= "red", "1"="green"))
+```
+
+La pequeña diferencia notada en el gráfico anterior desaparece en este gráfico, donde no parece haber una clara relación entre la calidad crediticia y la antigüedad laboral.
+
+
+#### 4.1.5. Variable: CNT_FAM_MEMBERS
+
+##### CNT_FAM_MEMBERS
+
+En relación a la variable *CNT_FAM_MEMBERS* observaremos la distribución de la cantidad total de integrantes de la familia, en cada barra del siguiente gráfico:
+
+```{r}
+ggplot(dfCreditCard) + 
+  geom_histogram(
+    aes(x=CNT_FAM_MEMBERS), 
+    fill="steel blue",
+    col= "yellow",
+    alpha= .6,
+    binwidth = 1) + 
+  labs(title="Histograma: Cantidad de Integrantes Familiares en Solicitudes", x="Cantidad Integrantes", y="Cantidad Solicitudes")
+```
+
+Como era de esperarse se observa una distribución similar a la cantidad de hijos, son variables claramente relacionadas.
+
+##### CNT_FAM_MEMBERS vs APPROVE
+
+Es de esperarse que la relación entre estas dos variables sea similar a lo ya evaluado con cantidad de hijos, se utiliza el gráfico de barras para convalidarlo.
+
+```{r}
+ggplot(dfCreditCard) +
+  geom_bar(aes(x=CNT_FAM_MEMBERS, fill=Approve), position="fill", alpha=.5) +
+  labs(title="Creditos Buenos vs Creditos Malos según cantidad de miembros familiares", x="Cantidad de integrantes", y="%") +
+  scale_fill_manual(values= c("0"= "red", "1"="green"))
+```
+
+
+Para su elección o no como predictor deberíamos evaluar si vamos o no a incluir Cantidad de Hijos, porque solo una de las dos variables sería el predictor por estar correlacionadas entre ellas.
+
+#### 4.1.6. Variable: LAST
+
+Es una variable que creamos nosotros para expresar el último período del cual tenemos datos, sirvió de variable intermedia para calcular la situación crediticia. No sirve como predictor.
+
+
+### 4.2 Correlación de variables numéricas
+
+Mediante un gráfico de correlación de las variables numéricas vamos a analizar como se relacionan entre ellas.
+
+```{r}
+dfcor <- select_if(dfCreditCard, is.numeric)
+dfcor <- select(dfcor, -ID, -LAST, -DAYS_EMPLOYED, -DAYS_BIRTH)
+cm <- cor(dfcor)
+corrplot(cm, method = "number", type = "upper")
+```
+
+
+Observamos en el gráfico que Cantidad de Hijos y Cantidad de Miembros Familiares están muy relaionados, nos parece más amplio el concepto de Miembros Familiares para seleccionarlo como predictor.
+
+No observamos correlaciones significativas entre el resto de las variables.
+
+
+### 4.3 Análisis de variables categóricas
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+---
+
+### Sacado de mas arriba
 
 ```{r}
 ggplot(dfCreditCard) +
@@ -394,26 +672,39 @@ En base al análisis de los datos, podríamos inferir que cuando la cantidad de 
 
 Por fuera de esa concentración detectamos valores bien marcados que deberemos determinar cómo tratarlos.
 
+Podemos confirmar que el valor general observado anteriormente mantiene el nivel de concentración para la cantidad de hijos en relación al pago dentro su historial crediticio. 
+
+
 ***ToDo*** definir que hacer con los outliers. si se agregan reemplazando el valor por el promedio o se descartan.
 
-### CNT_CHILDREN vs APPROVE
 
-La cantidad de casos aprobados en comparación de los que no, se mantienen en promedio en valores similares.
 
-Esto sucede en torno a los 5 hijos. Luego de ese valor estimado, aumenta significativamente la cantidad de casos no aprobados por falta de pago en su historial crediticio.
+
+
+
+
+
+
+Observaremos para el análisis en cuestión la correlación de los valores númericos del dataset unificado.
+
+En el gráfico de correlación podemos identificar y destacar un coeficiente de correlación positiva entre la *CNT_CHILDREN* y *CNT_FAM_MEMBERS*. Esta es una relación presente entre la cantidad de hijos y la cantidad de miembros de una familia.
+
+También hemos observado el coeficiente de correlación negativo hayado en la relación entre *DAYS_BIRTH* y *DAYS_EMPLOYED*. 
+
+***ToDo*** mejorar la justificación desde el lado del negocio
+
+***ToDo*** Estas variables numéricas no fueron limpiadas todavía, no podemos hacer todavía la correlación porque tiene valores inválidos. ***Esto hay que hacerlo mas abajo***
 
 ```{r}
-ggplot(dfCreditCard) + 
-  geom_boxplot(aes(x=Approve, y=CNT_CHILDREN), outlier.color = "red")
+dfcor <- select_if(dfCreditCard, is.numeric)
+dfcor <- select(dfcor, -ID)
+cm <- cor(dfcor)
+corrplot(cm, method = "number", type = "upper")
 ```
 
-Representando los datos de una manera diferente, podemos observar que la inferencia realizada anteriormente es consistente.
-Los casos donde la cantidad de hijos sea mayor a 5 supone una falta de pago de acuerdo al criterio mencionado previamente.
 
-```{r}
-ggplot(dfCreditCard) +
-  geom_bar(aes(x=CNT_CHILDREN, fill=Approve), position="fill")
-```
+
+
 
 
 ---
