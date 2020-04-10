@@ -4,6 +4,60 @@ output: html_notebook
 ---
 
 
+Ver si hay una libreria para smote
+
+hacer un oversampling
+
+triplicar la cant de registros de la cant menor
+
+undersampling quedarnos con 2000 o 3000 negativos
+
+Ver si nos va mejor o si sigue dando mal
+
+
+
+
+
+
+
+### 3.5 SMOTE
+
+Se observa en la variable objetivo que la muestra está muy desbalanceada. Se va a hacer un SMOTE para mejorar el balance.
+
+```{r}
+dfCreditCard <- SMOTE(Approve ~ ., dfCreditCard, perc.over = 500,perc.under=150)
+str(dfCreditCard)
+summary(dfCreditCard)
+```
+
+
+
+
+
+
+
+Se debería consultar a negocio si pueden ser correctos estos valores, podría suceder que tuviera una cartera de muy buena calidad crediticia.
+
+A los fines del ejercicio, y para que no quede una distribución muy desbalanceada se decide probar interpretando los créditos con deuda en los últimos 30 días (Status=0) también como incobrables. 
+
+Se redefine la variable Approve:
+```{r}
+dfCreditsReduced$Approve <- ifelse(dfCreditsReduced$STATUS == 'C' | dfCreditsReduced$STATUS == 'X', 1, 0)
+dfCreditsReduced$Approve <- factor(dfCreditsReduced$Approve, ordered = FALSE)
+summary(dfCreditsReduced)
+
+```
+
+Con esta nueva definición, tenemos un 31% de créditos "malos", que vamos a utilizar para entrenar el modelo.
+
+
+
+
+
+
+
+
+
 ---
 
 ### Sacado de mas arriba

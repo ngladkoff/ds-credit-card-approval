@@ -99,6 +99,7 @@ library(rms)
 library(Information)
 library(grid)
 library(ROCR)
+library(DMwR)
 ```
 
 Si los datasets no están en el directorio de trabajo los descargamos:
@@ -313,20 +314,6 @@ summary(dfCreditsReduced)
 
 Se observa que la cantidad de créditos "malos" es de aproximadamente el 1%, que no es un porcentaje razonable de incobrabilidad, que según lo que hemos investigado suele ser lijeramente superior al 3%. 
 
-Se debería consultar a negocio si pueden ser correctos estos valores, podría suceder que tuviera una cartera de muy buena calidad crediticia.
-
-A los fines del ejercicio, y para que no quede una distribución muy desbalanceada se decide probar interpretando los créditos con deuda en los últimos 30 días (Status=0) también como incobrables. 
-
-Se redefine la variable Approve:
-```{r}
-dfCreditsReduced$Approve <- ifelse(dfCreditsReduced$STATUS == 'C' | dfCreditsReduced$STATUS == 'X', 1, 0)
-dfCreditsReduced$Approve <- factor(dfCreditsReduced$Approve, ordered = FALSE)
-summary(dfCreditsReduced)
-
-```
-
-Con esta nueva definición, tenemos un 31% de créditos "malos", que vamos a utilizar para entrenar el modelo.
-
 
 ## 3 - Unificar los datasets
 
@@ -358,6 +345,8 @@ Para los fines de este análisis, aceptaremos cómo válida esta reducción en e
 print(paste("Registros en el historial:", dim(dfCreditsReduced)[1]))
 print(paste("Solicitudes de tarjetas de crédito con registros en el historial:", dim(dfCreditCard)[1]))
 ```
+
+
 
 ## 4 - Análisis de variables sobre dataset unificado
 
@@ -935,12 +924,12 @@ ggplot(dfCatIncomeType) +
 Verificamos si podría existir alguna relación entre ambas variables mediante un gráfico de barras apiladas.
 
 ```{r}
-print(levels(dfCreditCard$NAME_EDUCATION_TYPE))
+# print(levels(dfCreditCard$NAME_EDUCATION_TYPE))
 ```
 
 
 ```{r}
-dfCreditCard$NAME_EDUCATION_TYPE <- factor(dfCreditCard$NAME_EDUCATION_TYPE, levels = c("Lower secondary","Secondary / secondary special","Incomplete higher", "Higher education", "Academic degree"), ordered = TRUE)
+# dfCreditCard$NAME_EDUCATION_TYPE <- factor(dfCreditCard$NAME_EDUCATION_TYPE, levels = c("Lower secondary","Secondary / secondary special","Incomplete higher", "Higher education", "Academic degree"), ordered = TRUE)
 
 ggplot(dfCreditCard) +
   geom_bar(aes(x=NAME_EDUCATION_TYPE, fill=Approve), position="fill", alpha=.5) +
@@ -1094,15 +1083,24 @@ Se visualiza una relación entre las variables. Podría ser un posible predictor
 
 ## 1 - Preparar los datasets de Training y de Testing
 
+Se observa en la variable objetivo que la muestra está muy desbalanceada. Se va a hacer un SMOTE para mejorar el balance.
+
+```{r}
+dfCreditCardSMOTE <- SMOTE(Approve ~ ., dfCreditCard, perc.over = 500, k=5, perc.under=150)
+str(dfCreditCardSMOTE)
+summary(dfCreditCardSMOTE)
+```
+
+
 Dividimos el set de datos en un 80% para entrenamiento y un 20% para prueba.
 
 ```{r}
-muestra <- floor(nrow(dfCreditCard) * 0.8)
-trainingIndex <- sample(nrow(dfCreditCard), muestra, replace=FALSE)
-testIndex <- seq_len(nrow(dfCreditCard))[!(seq_len(nrow(dfCreditCard)) %in% trainingIndex)]
+muestra <- floor(nrow(dfCreditCardSMOTE) * 0.8)
+trainingIndex <- sample(nrow(dfCreditCardSMOTE), muestra, replace=FALSE)
+testIndex <- seq_len(nrow(dfCreditCardSMOTE))[!(seq_len(nrow(dfCreditCardSMOTE)) %in% trainingIndex)]
 
-dfTrainLR <- dfCreditCard[trainingIndex,]
-dfTestLR <- dfCreditCard[testIndex,]
+dfTrainLR <- dfCreditCardSMOTE[trainingIndex,]
+dfTestLR <- dfCreditCardSMOTE[testIndex,]
 ```
 
 
@@ -1115,14 +1113,14 @@ Como el problema planteado es de clasificación binaria, es decir intentamos pre
 Como primera aproximación vamos a utilizar como predictores todas las variables que detectamos podrían tener alguna relación con la variable objetivo.
 
 ```{r}
-predictores <- c("AGE", "CNT_FAM_MEMBERS", "FLAG_WORK_PHONE", "FLAG_EMAIL", "NAME_EDUCATION_TYPE", "NAME_FAMILY_STATUS", "NAME_HOUSING_TYPE", "OCCUPATION_TYPE")
+objetivo <- "Approve"
+predictores <- c("CODE_GENDER", "AMT_INCOME_TOTAL", "AGE", "CNT_FAM_MEMBERS", "FLAG_WORK_PHONE", "FLAG_EMAIL", "NAME_EDUCATION_TYPE", "NAME_FAMILY_STATUS", "NAME_HOUSING_TYPE", "OCCUPATION_TYPE", "YEARS_EMPLOYED")
 print(predictores)
 ```
 
 ### 2.2 - Creamos la formula del modelo
 
 ```{r}
-objetivo <- "Approve"
 formula <- paste(objetivo, paste(predictores, collapse = " + "), sep=" ~ ")
 print(formula)
 ```
@@ -1161,7 +1159,7 @@ Las variables NAME_EDUCATION_TYPE y NAME_HOUSING_TYPE están muy afectadas por l
 Vamos a entrenar un nuevo modelo sin las variables 
 
 ```{r}
-predictores <- c("FLAG_WORK_PHONE", "FLAG_EMAIL", "OCCUPATION_TYPE")
+predictores <- c("CODE_GENDER", "AMT_INCOME_TOTAL", "FLAG_WORK_PHONE", "FLAG_EMAIL", "NAME_FAMILY_STATUS", "NAME_HOUSING_TYPE", "OCCUPATION_TYPE", "YEARS_EMPLOYED")
 formula <- paste(objetivo, paste(predictores, collapse = " + "), sep=" ~ ")
 modeloLR <- glm(formula, data=dfTrainLR, family=binomial(link="logit"))
 ```
@@ -1220,9 +1218,7 @@ precision <- (precObj@y.values)[[1]]
 prec.x <- (precObj@x.values)[[1]]
 recall <- (recObj@y.values)[[1]]
 
-# Base rate of disease in the training data
-# proporción de enfermos que hay en los datos de entrenamiento
-pnull <- mean(dfTrainLR$Approve)
+pnull <- (length(which(dfTrainLR$Approve == 1)) / length(which(dfTrainLR$Approve != 2)))
 pnull
 
 # Data for the plot
@@ -1242,9 +1238,51 @@ nplot(list(p1, p2))
 
 ```
 
+Probamos con un umbral del 50% para despues ir ajustando.
 
 ```{r}
-thresh <- 0.5
+thresh <- 0.50
+ctab.test <- table(prediccion=as.numeric(dfTestLR$pred > thresh), datos=dfTestLR$Approve)
+ctab.test
+
+precision <- ctab.test[2,2]/sum(ctab.test[2,])
+paste("Precision:", precision)
+
+recall <- ctab.test[2,2]/sum(ctab.test[,2])
+paste("Recall:",recall)
+
+enrich <- precision / pnull
+paste("Enrich:",enrich)
+
+```
+
+
+## 3 - Curva ROC 
+
+```{r}
+sensObj <- performance(predObj, measure="sens")
+specObj <- performance(predObj, measure="spec")
+sensitivity <- (sensObj@y.values)[[1]]
+specificity <- (specObj@y.values)[[1]]
+
+dfplot <- data.frame(specm1=1-specificity, sens=sensitivity)
+fig <- ggplot(dfplot, aes(x=specm1, y=sens))
+fig <- fig + geom_line(color="red", size=1.25)
+fig <- fig + geom_abline(aes(slope=1, intercept=0))
+fig <- fig + theme_bw()
+fig <- fig + xlab("1 - Especificidad")
+fig <- fig + ylab("Sensibilidad")
+fig
+
+```
+
+
+## 4 - Ajustamos el Umbral del modelo
+
+Probamos con 45%, 55%, 60% y 65%. El mejor balance para las necesidades de negocio es con el 60%. 
+
+```{r}
+thresh <- 0.60
 ctab.test <- table(prediccion=as.numeric(dfTestLR$pred > thresh), datos=dfTestLR$Approve)
 ctab.test
 
@@ -1261,28 +1299,13 @@ paste("Enrich:",enrich)
 
 
 
+## ToDo
 
+Cambiar objetivo
+Revisar textos y graficos por el cambio de Approve
+Ajustar las variables del modelo, ver predictores
 
-
-
-
-
-
-
-
-
-matriz confusión
-precission recall
-curva roc
-
-
-
-
-
-
-
-
-
+Podríamos fittear 2 modelos con distintos predictores y comparar matriz confusión
 
 
 
