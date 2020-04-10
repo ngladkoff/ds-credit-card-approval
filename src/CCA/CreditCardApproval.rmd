@@ -1159,7 +1159,7 @@ Las variables NAME_EDUCATION_TYPE y NAME_HOUSING_TYPE están muy afectadas por l
 Vamos a entrenar un nuevo modelo sin las variables 
 
 ```{r}
-predictores <- c("CODE_GENDER", "AMT_INCOME_TOTAL", "FLAG_WORK_PHONE", "FLAG_EMAIL", "NAME_FAMILY_STATUS", "NAME_HOUSING_TYPE", "OCCUPATION_TYPE", "YEARS_EMPLOYED")
+predictores <- c("AMT_INCOME_TOTAL", "FLAG_WORK_PHONE", "NAME_FAMILY_STATUS", "NAME_HOUSING_TYPE", "OCCUPATION_TYPE", "YEARS_EMPLOYED")
 formula <- paste(objetivo, paste(predictores, collapse = " + "), sep=" ~ ")
 modeloLR <- glm(formula, data=dfTrainLR, family=binomial(link="logit"))
 ```
