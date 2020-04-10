@@ -97,7 +97,8 @@ library(sqldf)
 library(corrplot)
 library(rms)
 library(Information)
-
+library(grid)
+library(ROCR)
 ```
 
 Si los datasets no están en el directorio de trabajo los descargamos:
@@ -934,6 +935,13 @@ ggplot(dfCatIncomeType) +
 Verificamos si podría existir alguna relación entre ambas variables mediante un gráfico de barras apiladas.
 
 ```{r}
+print(levels(dfCreditCard$NAME_EDUCATION_TYPE))
+```
+
+
+```{r}
+dfCreditCard$NAME_EDUCATION_TYPE <- factor(dfCreditCard$NAME_EDUCATION_TYPE, levels = c("Lower secondary","Secondary / secondary special","Incomplete higher", "Higher education", "Academic degree"), ordered = TRUE)
+
 ggplot(dfCreditCard) +
   geom_bar(aes(x=NAME_EDUCATION_TYPE, fill=Approve), position="fill", alpha=.5) +
   labs(title="Creditos Buenos vs Creditos Malos según Nivel de Educación", x="Categoría", y="%") +
@@ -1131,6 +1139,8 @@ modeloLR <- glm(formula, data=dfTrainLR, family=binomial(link="logit"))
 summary(modeloLR)
 ```
 
+Del análisis de coeficientes AGE, CNT_FAM_MEMBERS y NAME_FAMILY_STATUS no parecen ser confiables.
+
 ### 2.5 - Verificamos los  variance inflation factors (VIF)
 
 Verificamos que tan afectados están los coeficientes por culpa de la regresión.
@@ -1144,12 +1154,14 @@ vif(modeloLR)
 ```
 
 Las variables NAME_EDUCATION_TYPE y NAME_HOUSING_TYPE están muy afectadas por la regresión.
-Vamos a probar entrenar un nuevo modelo sin estas variables.
+
 
 ### 2.6 - Probamos re-entrenar el modelo
 
+Vamos a entrenar un nuevo modelo sin las variables 
+
 ```{r}
-predictores <- c("AGE", "CNT_FAM_MEMBERS", "FLAG_WORK_PHONE", "FLAG_EMAIL",  "NAME_FAMILY_STATUS", "OCCUPATION_TYPE")
+predictores <- c("FLAG_WORK_PHONE", "FLAG_EMAIL", "OCCUPATION_TYPE")
 formula <- paste(objetivo, paste(predictores, collapse = " + "), sep=" ~ ")
 modeloLR <- glm(formula, data=dfTrainLR, family=binomial(link="logit"))
 ```
@@ -1159,18 +1171,122 @@ modeloLR <- glm(formula, data=dfTrainLR, family=binomial(link="logit"))
 summary(modeloLR)
 ```
 
+
 #### VIF
 ```{r}
 vif(modeloLR)
 ```
 
-
 # Evaluación del Modelo
 
+## 1 - Plotear distribución de predicciones
+
+```{r}
+dfTrainLR$pred <- predict(modeloLR, newdata= dfTrainLR, type="response")
+dfTestLR$pred <- predict(modeloLR, newdata= dfTestLR, type="response")
+
+ggplot(dfTrainLR) + 
+  geom_density(aes(x=pred, colour=as.factor(Approve), linetype=as.factor(Approve))) +
+  xlab("Predicción") + 
+  ylab("Densidad") +
+  theme_bw()
+```
+
+Lo que se observa en el gráfico es que el modelo no sirve, las clases deberían estar bien separadas para poder setear un **threshold**.
+
+## 2 - Matriz de confusión
+
+Definimos la función:
+```{r}
+nplot <- function(plist) {
+  n <- length(plist)
+  grid.newpage()
+  pushViewport(viewport(layout=grid.layout(n,1)))
+  vplayout=function(x,y) { viewport(layout.pos.row=x, layout.pos.col=y) }
+  for (i in 1:n) {
+    print(plist[[i]], vp=vplayout(i,1))
+  }
+}
+
+```
 
 
-# Check variance inflation factors
-vif(salesModelFull)
+```{r}
+predObj <-prediction(dfTrainLR$pred, dfTrainLR$Approve)
+precObj <- performance(predObj, measure = "prec")
+recObj <- performance(predObj, measure = "rec")
+
+precision <- (precObj@y.values)[[1]]
+prec.x <- (precObj@x.values)[[1]]
+recall <- (recObj@y.values)[[1]]
+
+# Base rate of disease in the training data
+# proporción de enfermos que hay en los datos de entrenamiento
+pnull <- mean(dfTrainLR$Approve)
+pnull
+
+# Data for the plot
+dfplot <- data.frame(threshold=prec.x, precision=precision, recall=recall)
+
+p1 <- ggplot(dfplot, aes(x=threshold)) +
+  geom_line(aes(y=precision/pnull)) +
+  xlab("Umbral") +
+  ylab("Precisión / P_0")
+
+p2 <- ggplot(dfplot, aes(x=threshold)) +
+  geom_line(aes(y=recall)) +
+  xlab("Umbral") +
+  ylab("Exhaustividad")
+
+nplot(list(p1, p2))
+
+```
+
+
+```{r}
+thresh <- 0.5
+ctab.test <- table(prediccion=as.numeric(dfTestLR$pred > thresh), datos=dfTestLR$Approve)
+ctab.test
+
+precision <- ctab.test[2,2]/sum(ctab.test[2,])
+paste("Precision:", precision)
+
+recall <- ctab.test[2,2]/sum(ctab.test[,2])
+paste("Recall:",recall)
+
+enrich <- precision / pnull
+paste("Enrich:",enrich)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+matriz confusión
+precission recall
+curva roc
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
