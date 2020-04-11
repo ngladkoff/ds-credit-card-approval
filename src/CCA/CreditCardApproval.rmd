@@ -3,10 +3,10 @@ title: "UADE - Maestria TIC - Ciencia de Datos - Modelo de predicción para apro
 author: "Marcelo Capozzi (LU: 1119183) - Nicolas Gladkoff (LU: 1085075)"
 date: "Abril 2020"
 output:
-  html_notebook: default
   html_document:
     df_print: paged
   pdf_document: default
+  html_notebook: default
 ---
 
 #### GitHub:
@@ -1252,7 +1252,7 @@ La capacidad de predicción de este modelo es muy baja. Vamos a Reentrenar el mo
 
 ### 2.4 - Probamos re-entrenar el modelo
 
-Del resto de los predictores nos parece que van a estar relacionados con OCCUPATION_TYPE los siguientes : NAME_EDUCATION_TYPE, NAME_HOUSING_TYPE y NAME_INCOME_TYPE. 
+Del resto de los predictores nos parece que van a estar relacionados con OCCUPATION_TYPE los siguientes : NAME_EDUCATION_TYPE, NAME_HOUSING_TYPE y NAME_INCOME_TYPE, no los vamos a usar como predictores. 
 
 Vamos a probar re-entrenar el modelo con los siguientes predictores
 
@@ -1317,7 +1317,7 @@ ggplot(dfTrainLR) +
   theme_bw()
 ```
 
-Se observan los los picos bien definidos, disminuyó un poco el ruido dentro de cada categoría.
+Se observan los los picos bien definidos, disminuyó el ruido dentro de cada categoría.
 
 
 ##### 2.4.1.2 - Matriz de Confusión
@@ -1663,10 +1663,10 @@ paste("Enrich:",enrich)
 
 ### 3.3 - Ajustamos el Umbral del modelo
 
-Probamos con 45%, 55%, 60% y 65%. El mejor balance para las necesidades de negocio es con el 60%, con un buen balance entre precisión y exhaustividad.
+Probamos con 45%, 55%, 60% y 65%. El mejor balance para las necesidades de negocio es con el 55%, con un buen balance entre precisión y exhaustividad.
 
 ```{r}
-thresh <- 0.60
+thresh <- 0.55
 ctab.test <- table(prediccion=as.numeric(dfTestLR$pred > thresh), datos=dfTestLR$Approve)
 ctab.test
 
@@ -1679,14 +1679,61 @@ paste("Recall:",recall)
 enrich <- precision / pnull
 paste("Enrich:",enrich)
 
+PorcFalsosDetect <- ctab.test[1,1]/sum(ctab.test[,1])
+PorcPositivosRech <- ctab.test[1,2]/sum(ctab.test[,2])
+paste("% Falsos detectados: ", round(PorcFalsosDetect * 100, digits=2))
+paste("% Creditos buenos rechazados: ", round(PorcPositivosRech * 100, digits=2))
+
 ```
 
+### 3.4 - Que pasa si probamos contra el set de datos original?
 
-# Análisis de Resultados
+Como ejercicio queremos saber que pasa si exponemos el modelo ajustado al set de datos original, para ver que resultados obtenemos.
 
+```{r}
+dfCreditCard$NAME_INCOME_TYPE[dfCreditCard$NAME_INCOME_TYPE == "Student"] <- "Working"
 
+dfCreditCard$pred <- predict(modeloLR, newdata= dfCreditCard, type="response")
+thresh <- 0.55
+ctab.test <- table(prediccion=as.numeric(dfCreditCard$pred > thresh), datos=dfCreditCard$Approve)
+ctab.test
 
-# Conclusiones
+precision <- ctab.test[2,2]/sum(ctab.test[2,])
+paste("Precision:", precision)
 
+recall <- ctab.test[2,2]/sum(ctab.test[,2])
+paste("Recall:",recall)
 
+enrich <- precision / pnull
+paste("Enrich:",enrich)
 
+PorcFalsosDetect <- ctab.test[1,1]/sum(ctab.test[,1])
+PorcPositivosRech <- ctab.test[1,2]/sum(ctab.test[,2])
+paste("% Falsos detectados: ", round(PorcFalsosDetect * 100, digits=2))
+paste("% Creditos buenos rechazados: ", round(PorcPositivosRech * 100, digits=2))
+
+```
+
+El modelo de predicción funcionó bien para la detección de créditos buenos, no rechazó más de 1/4 de los mismos.
+
+Sin embargo, no funcionó nada bien para la detección de créditos malos, solo pudo detectar un 30%.
+
+# Análisis de Resultados y Conclusiones
+
+Los objetivos que nos planteó el negocio fueron 2:
+- detectar 2/3 de los créditos malos
+- no perder más de 1/4 de créditos buenos
+
+De acuerdo con el análisis realizado logramos ajustar un modelo que cumple mínimamente las necesidades de negocio propuestas para el dataset de testeo.
+
+Se observa un modelo que no tiene grandes capacidades de predicción, es solamente mejor en un 34% que el modelo nulo.
+
+Se partió de un set de datos muy desbalanceado, que obligó a aplicar la técnica SMOTE para obtener un balance para los sets de Entrenamiento y Testing.
+
+Hicimos el ejercicio de probar el modelo contra el set de datos completo original, que no había sido utilizado de forma completa para el entrenamiento (por SMOTE) y observamos que no se comporta de acuerdo con las necesidades de negocio.
+
+Por todo esto, entendemos que el proceso de Ciencia de Datos aplicado hasta el momento no logró un modelo que cumpla con el objetivo planteado.
+
+Una primera solución podría ser tratar de conseguir un set de datos con mayor porcentaje de deudores. En este set solo se tiene información de 382 casos, que podría ser muy poco para que el algoritmo entrene correctamente.
+
+También existen otros algoritmos de clasificación que podrían probarse con el set de datos actual como Arboles de Decisión, Random Forest o Support Vector Machines, y verificar si mejoran la capacidad de predicción.
