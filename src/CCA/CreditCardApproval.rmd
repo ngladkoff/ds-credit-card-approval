@@ -197,7 +197,6 @@ Definimos una semilla por si usamos generadores de datos aleatoreos, para garant
 set.seed(1234)
 ```
 
-
 # Análisis Exploratorio de Datos
 
 ## 1 - Exámen inicial de los datos
@@ -221,7 +220,6 @@ Se observa también que la variable OCCUPATION_TYPE es categórica y tiene mucha
 
 Por último, nos llama la atención la variable DAYS_EMPLOYED que tiene valores negativos y positivos, algunos muy grandes (en el rango de los 1000 años)
 
-
 #### 1.1.2 - Conversión variables categóricas
 
 ```{r}
@@ -229,10 +227,10 @@ dfApplications$FLAG_MOBIL <- factor(dfApplications$FLAG_MOBIL, ordered=FALSE)
 dfApplications$FLAG_WORK_PHONE <- factor(dfApplications$FLAG_WORK_PHONE, ordered=FALSE)
 dfApplications$FLAG_PHONE <- factor(dfApplications$FLAG_PHONE, ordered=FALSE)
 dfApplications$FLAG_EMAIL <- factor(dfApplications$FLAG_EMAIL, ordered=FALSE)
-
 ```
 
 #### 1.1.3 - Summary
+
 ```{r}
 summary(dfApplications)
 ```
@@ -256,13 +254,11 @@ cDupAppIds <- dim(dfApplications[duplicated(dfApplications$ID),])[1]
 cDupAppRecord <- dim(dfApplications[duplicated(dfApplications),])[1]
 dfDupAppIds <- dfApplications[duplicated(dfApplications$ID),]
 cAppIds <- dim(dfApplications)[1]
-
 print(paste("IDs únicos:", cUniAppIds))
 print(paste("IDs duplicados:", cDupAppIds))
 print(paste("Records duplicados: ", cDupAppRecord))
 print(paste("Total:", cAppIds))
 print(paste("Duplicados: %", (round((cDupAppIds*100/cAppIds), digits=2))))
-
 ```
 
 Observamos que no tenemos registros duplicados, es decir, que todos sus valores coincidan. Sin embargo, detectamos 47 IDs duplicados. Concluimos que no corresponden a una misma solicitud cargada más de una vez sino solicitudes distintas con la misma numeración.
@@ -279,7 +275,6 @@ print(paste("Cantidad Anterior - Cantidad Nueva: ",cAppIds - cNewTotal))
 
 Validamos que la cantidad nueva tiene 94 registros menos (47 duplicados x 2).
 
-
 ### 1.2 - Dataset: Credits
 
 #### 1.2.1 - Estructura
@@ -291,6 +286,7 @@ str(dfCredits)
 Observamos que por cada ID de solicitud se crean varios registros, uno por cada mes, con el estado de la deuda en dicho mes.
 
 Se imprimen los primeros y últimos registros para confirmar:
+
 ```{r}
 head(dfCredits)
 tail(dfCredits)
@@ -306,16 +302,16 @@ summary(dfCredits)
 
 No se observan números fuera de rango dentro de la variable MONTHS_BALANCE.
 
-
 ## 2 - Reducción dataset Credits
 
 ### 2.1 - Identificar IDs únicos
+
 ```{r}
 dfCredIds <- data.frame(table(dfCredits$ID))
 ```
 
-
 #### 2.1.1 - Estructura
+
 ```{r}
 str(dfCredIds)
 ```
@@ -327,42 +323,39 @@ Se observa que este dataset solo cuenta con 45985 IDs únicos. Esto nos indica q
 summary(dfCredIds)
 ```
 
-
 ### 2.2 - Reducir registros
 
-Se decidió que vamos a tomar el estado del último més del que tenemos información. 
+Se decidió que vamos a tomar todos los datos en la misma fecha, el mes 0 del que tenemos información. 
 
 Para esto recuperamos primero cual es ese último mes:
+
 ```{r}
-
-dfCreditsLastMonth <- sqldf("SELECT ID, MAX(MONTHS_BALANCE) as LAST FROM dfCredits GROUP BY ID order by LAST")
-str(dfCreditsLastMonth)
-
-```
-
-Verificamos que la cantidad de registros coincide con el análisis de IDs únicos. 
-
-Continuamos agregando el estádo del crédito en ese último mes.
-```{r}
-dfCreditsReduced <- sqldf("SELECT t1.ID, t1.LAST, t2.STATUS FROM dfCreditsLastMonth t1 JOIN dfCredits t2 ON t1.ID = t2.ID and t1.LAST = t2.MONTHS_BALANCE")
-summary(dfCreditsReduced)
+dfCreditsReduced <- sqldf("SELECT ID, MONTHS_BALANCE, STATUS FROM dfCredits WHERE MONTHS_BALANCE=0")
+str(dfCreditsReduced)
 ```
 
 Definimos nuestra variable objetivo: *Approve*. Si el estado del crédito en el último mes que se tiene registro no quedó con deuda (estados C, X y 0) se va a establecer un uno, y si quedó en otro de los estados, un cero.
 
 ```{r}
-dfCreditsReduced$Approve <- ifelse(dfCreditsReduced$STATUS == 'C' | dfCreditsReduced$STATUS == 'X' | dfCreditsReduced$STATUS == '0', 1, 0)
-dfCreditsReduced$Approve <- factor(dfCreditsReduced$Approve, ordered = FALSE)
+dfCreditsReduced$Approve <- factor(ifelse(dfCreditsReduced$STATUS %in% as.character(1:5), 0, 1))
 summary(dfCreditsReduced)
 print(paste("% Créditos malos: ", round(100 * length(which(dfCreditsReduced$Approve == 0)) / length(which(dfCreditsReduced$Approve == 1)),digits=2)))
 ```
 
-Se observa que la cantidad de créditos "malos" es de aproximadamente el 1%, que representa un porcentaje bajo de incobrabilidad. Según lo que hemos investigado suele ser lijeramente superior al 3%. 
+Se observa que la cantidad de créditos "malos" es de aproximadamente el 1.2%, que representa un porcentaje bajo de incobrabilidad. Según lo que hemos investigado suele ser lijeramente superior al 3%. 
 
+A continuación graficamos la distribución de créditos.
+
+```{r}
+ggplot(dfCreditsReduced) +
+  geom_bar(aes(x=Approve)) +
+  labs(title="Distribución de Créditos", x="Crédito Malo (0) o Bueno (1)", y="Cantidad")
+```
 
 ## 3 - Unificar los datasets
 
 ### 3.1 - Unificar
+
 ```{r}
 dfCreditCard <- merge(dfApplicationsCleaned, dfCreditsReduced, by="ID")
 ```
@@ -377,7 +370,6 @@ str(dfCreditCard)
 summary(dfCreditCard)
 ```
 
-
 ### 3.4 - Conclusiones de la unificación
 
 Luego de unir ambos datasets observamos que la cantidad de registros de clientes que poseen información histórica ha disminuido. 
@@ -390,7 +382,6 @@ Para los fines de este análisis, aceptaremos cómo válida esta reducción en e
 print(paste("Registros en el historial:", dim(dfCreditsReduced)[1]))
 print(paste("Solicitudes de tarjetas de crédito con registros en el historial:", dim(dfCreditCard)[1]))
 ```
-
 
 ## 4 - Análisis de variables sobre dataset unificado
 
@@ -442,9 +433,7 @@ ggplot(dfCreditCard) +
   scale_fill_manual(values= c("0"= "red", "1"="green"))
 ```
 
-
 No se observa en el gráfico una relación aparente entre la variable CNT_CHILDREN y la varible objetivo.
-
 
 #### 4.1.2. - Variable: AMT_INCOME_TOTAL
 
@@ -470,7 +459,6 @@ summary(dfCreditCard$AMT_INCOME_TOTAL)
 
 Dentro del rango de los 120000 y los 225000 dolares anuales de ingreso se concentra el 50% de las solicitudes de tarjeta de crédito. Vemos la presencia de valores muy inferiores y muy superiores.
 
-
 ##### AMT_INCOME_TOTAL vs APPROVE
 
 Vamos a utilizar el gráfico BoxPlot para tratar de entender como se relacionan la variable AMT_INCOME_TOTAL y nuestra variable Objetivo.
@@ -491,7 +479,6 @@ ggplot(dfCreditCard) +
 ```
 
 Se observa una ligera relación entre las variables. Podría ser un posible predictor.
-
 
 #### 4.1.3. - Variable: DAYS_BIRTH
 
@@ -524,7 +511,6 @@ ggplot(dfCreditCard) +
 
 Observamos una distribución con cierta semejanza a una campana de Gauss (Normal). 
  
-
 ##### AGE vs APPROVE
 
 Vamos a utilizar el gráfico BoxPlot para tratar de entender como se relacionan la variable AGE y nuestra variable Objetivo.
@@ -545,7 +531,6 @@ ggplot(dfCreditCard) +
 ```
 
 Parece existir una ligera tendencia a que los créditos mejoren a medida que aumenta la edad. Podría ser un posible predictor.
-
 
 #### 4.1.4. - Variable: DAYS_EMPLOYED
 
@@ -614,7 +599,6 @@ ggplot(dfCreditCard) +
 
 La leve diferencia notada en el gráfico anterior se mantiene, podría ser un posible predictor.
 
-
 #### 4.1.5. - Variable: CNT_FAM_MEMBERS
 
 ##### CNT_FAM_MEMBERS
@@ -647,28 +631,20 @@ ggplot(dfCreditCard) +
 
 No se verifica una tendencia que justifique incluirlo como predictor.
 
-
-#### 4.1.6. - Variable: LAST
-
-Es una variable que creamos nosotros para expresar el último período del cual tenemos datos, sirvió de variable intermedia para calcular la situación crediticia. No sirve como predictor.
-
-
 ### 4.2 - Correlación de variables numéricas
 
 Mediante un gráfico de correlación de las variables numéricas vamos a analizar como se relacionan entre ellas.
 
 ```{r}
 dfcor <- select_if(dfCreditCard, is.numeric)
-dfcor <- select(dfcor, -ID, -LAST, -DAYS_EMPLOYED, -DAYS_BIRTH)
+dfcor <- select(dfcor, -ID, -MONTHS_BALANCE, -DAYS_EMPLOYED, -DAYS_BIRTH)
 cm <- cor(dfcor)
 corrplot(cm, method = "number", type = "upper")
 ```
 
-
 Observamos en el gráfico que Cantidad de Hijos y Cantidad de Miembros Familiares están muy relaionados, nos parece más amplio el concepto de Miembros Familiares si hubiera que  seleccionarlo como predictor.
 
 No observamos correlaciones significativas entre el resto de las variables.
-
 
 ### 4.3 - Análisis de variables categóricas
 
@@ -690,8 +666,7 @@ ggplot(dfCreditCard) +
     coord_flip()
 ```
 
-Se observa que la muestra contiene aproximadamente dos tercios de mujeres. Evaluar si es algo que podría sesgar el modelo.
-
+Se observa que la muestra contiene aproximadamente el doble de mujeres. Evaluar si es algo que podría sesgar el modelo.
 
 ##### CODE_GENDER vs APPROVE
 
@@ -705,7 +680,6 @@ ggplot(dfCreditCard) +
 ```
 
 A pesar que la muestra contenía mayor cantidad de solicitudes del sexo femenino, la distribución respecto a la calidad crediticia es similar a las solicitudes presentadas por el sexo masculino. No parece existir una relación entre el genero y la calidad crediticia.
-
 
 #### 4.3.2 - Variable: FLAG_OWN_CAR
 
@@ -725,7 +699,6 @@ ggplot(dfCreditCard) +
     coord_flip()
 ```
 
-
 ##### FLAG_OWN_CAR vs APPROVE
 
 Verificamos si podría existir alguna relación entre ambas variables mediante un gráfico de barras apiladas.
@@ -738,7 +711,6 @@ ggplot(dfCreditCard) +
 ```
 
 No parece existir una relación entre el Auto Propio y la calidad crediticia.
-
 
 #### 4.3.3 - Variable: FLAG_OWN_REALTY
 
@@ -758,7 +730,6 @@ ggplot(dfCreditCard) +
     coord_flip()
 ```
 
-
 ##### FLAG_OWN_REALTY vs APPROVE
 
 Verificamos si podría existir alguna relación entre ambas variables mediante un gráfico de barras apiladas.
@@ -771,7 +742,6 @@ ggplot(dfCreditCard) +
 ```
 
 Parecería existir alguna tendencia a favor de los que poseen casa propia, podría ser un posible predictor.
-
 
 #### 4.3.4 - Variable: FLAG_MOBIL
 
@@ -793,7 +763,6 @@ ggplot(dfCreditCard) +
 
 Como ya habíamos mencionado anteriormente, se observa que todos las solicitudes tienen Teléfono Celular, no nos sirve para la predicción.
 
-
 #### 4.3.5 - Variable: FLAG_WORK_PHONE
 
 ##### FLAG_WORK_PHONE
@@ -812,7 +781,6 @@ ggplot(dfCreditCard) +
     coord_flip()
 ```
 
-
 ##### FLAG_WORK_PHONE vs APPROVE
 
 Verificamos si podría existir alguna relación entre ambas variables mediante un gráfico de barras apiladas.
@@ -825,7 +793,6 @@ ggplot(dfCreditCard) +
 ```
 
 Parece existir una ligera diferencia, podría ser un posible predictor.
-
 
 #### 4.3.6 - Variable: FLAG_PHONE
 
@@ -845,7 +812,6 @@ ggplot(dfCreditCard) +
     coord_flip()
 ```
 
-
 ##### FLAG_PHONE vs APPROVE
 
 Verificamos si podría existir alguna relación entre ambas variables mediante un gráfico de barras apiladas.
@@ -858,7 +824,6 @@ ggplot(dfCreditCard) +
 ```
 
 No parece existir una relación entre el teléfono personal y la calidad crediticia.
-
 
 #### 4.3.7 - Variable: FLAG_EMAIL
 
@@ -878,7 +843,6 @@ ggplot(dfCreditCard) +
     coord_flip()
 ```
 
-
 ##### FLAG_EMAIL vs APPROVE
 
 Verificamos si podría existir alguna relación entre ambas variables mediante un gráfico de barras apiladas.
@@ -891,7 +855,6 @@ ggplot(dfCreditCard) +
 ```
 
 Parece existir una muy ligera diferencia, podría ser un posible predictor.
-
 
 #### 4.3.8 - Variable: NAME_INCOME_TYPE
 
@@ -918,7 +881,6 @@ ggplot(dfCatIncomeType) +
     coord_flip()
 ```
 
-
 ##### NAME_INCOME_TYPE vs APPROVE
 
 Verificamos si podría existir alguna relación entre ambas variables mediante un gráfico de barras apiladas.
@@ -932,7 +894,6 @@ ggplot(dfCreditCard) +
 
 Podría existir alguna relación entre las variables, aunque la diferencia observada en la categoría estudiantes debe ser tenida en cuenta en el contexto observado en el gráfico anterior, donde vemos que las solicitudes de estudiantes son insignificantes en la muestra. Podría ser un posible predictor.
 
-
 #### 4.3.9 - Variable: NAME_EDUCATION_TYPE
 
 ##### NAME_EDUCATION_TYPE
@@ -943,10 +904,8 @@ Para conocere la distribución de la muestra graficamos con barras diferentes ca
 catIncomeType <- table(dfCreditCard$NAME_EDUCATION_TYPE)
 dfCatIncomeType <- as.data.frame(catIncomeType)
 names(dfCatIncomeType) <- c("Categoria","Cantidad")
-
 # Ordenamos
 dfCatIncomeType <- transform(dfCatIncomeType, Categoria=reorder(Categoria, Cantidad))
-
 ggplot(dfCatIncomeType) + 
   geom_bar(
     aes(x=Categoria, y=Cantidad), 
@@ -958,7 +917,6 @@ ggplot(dfCatIncomeType) +
     coord_flip()
 ```
 
-
 ##### NAME_EDUCATION_TYPE vs APPROVE
 
 Verificamos si podría existir alguna relación entre ambas variables mediante un gráfico de barras apiladas.
@@ -967,10 +925,8 @@ Verificamos si podría existir alguna relación entre ambas variables mediante u
 print(levels(dfCreditCard$NAME_EDUCATION_TYPE))
 ```
 
-
 ```{r}
 dfCreditCard$NAME_EDUCATION_TYPE <- factor(dfCreditCard$NAME_EDUCATION_TYPE, levels = c("Lower secondary","Secondary / secondary special","Incomplete higher", "Higher education", "Academic degree"), ordered = TRUE)
-
 ggplot(dfCreditCard) +
   geom_bar(aes(x=NAME_EDUCATION_TYPE, fill=Approve), position="fill", alpha=.5) +
   labs(title="Creditos Buenos vs Creditos Malos según Nivel de Educación", x="Categoría", y="%") +
@@ -978,7 +934,6 @@ ggplot(dfCreditCard) +
 ```
 
 Visualizamos que podría existir una relación entre el nivel de educación y la calidad crediticia. Podría ser un posible predictor.
-
 
 #### 4.3.10 - Variable: NAME_FAMILY_STATUS
 
@@ -990,10 +945,8 @@ Para conocere la distribución de la muestra graficamos con barras diferentes ca
 catIncomeType <- table(dfCreditCard$NAME_FAMILY_STATUS)
 dfCatIncomeType <- as.data.frame(catIncomeType)
 names(dfCatIncomeType) <- c("Categoria","Cantidad")
-
 # Ordenamos
 dfCatIncomeType <- transform(dfCatIncomeType, Categoria=reorder(Categoria, Cantidad))
-
 ggplot(dfCatIncomeType) + 
   geom_bar(
     aes(x=Categoria, y=Cantidad), 
@@ -1032,10 +985,8 @@ Para conocere la distribución de la muestra graficamos con barras diferentes ca
 catIncomeType <- table(dfCreditCard$NAME_HOUSING_TYPE)
 dfCatIncomeType <- as.data.frame(catIncomeType)
 names(dfCatIncomeType) <- c("Categoria","Cantidad")
-
 # Ordenamos
 dfCatIncomeType <- transform(dfCatIncomeType, Categoria=reorder(Categoria, Cantidad))
-
 ggplot(dfCatIncomeType) + 
   geom_bar(
     aes(x=Categoria, y=Cantidad), 
@@ -1046,7 +997,6 @@ ggplot(dfCatIncomeType) +
     labs(title="Barras: Distribución por Tipo de Vivienda", x="Categoría", y="Cantidad Solicitudes") +
     coord_flip()
 ```
-
 
 ##### NAME_HOUSING_TYPE vs APPROVE
 
@@ -1060,20 +1010,19 @@ ggplot(dfCreditCard) +
     coord_flip()
 ```
 
-
 Se visualiza una relación entre las variables. Podría ser un posible predictor.
-
 
 #### 4.3.12 - Variable: OCCUPATION_TYPE
 
 ##### OCCUPATION_TYPE
 
 Como se observó en el summary, la categoría tiene datos incompletos.
+
 ```{r}
 summary(dfCreditCard$OCCUPATION_TYPE)
 ```
 
-No podemos consultar a negocio si son solicitudes incompletas o representa la categoría "Otros". A los fines del ejercicio se decide etiquetarlos como "Otros".
+No podemos consultar a negocio si son solicitudes incompletas o representa la categoría “Otros”. A los fines del ejercicio se decide etiquetarlos como “Otros”.
 
 ```{r}
 levels(dfCreditCard$OCCUPATION_TYPE)[levels(dfCreditCard$OCCUPATION_TYPE) == ""] <- "Other"
@@ -1086,10 +1035,8 @@ Para conocere la distribución de la muestra graficamos con barras diferentes ca
 catIncomeType <- table(dfCreditCard$OCCUPATION_TYPE)
 dfCatIncomeType <- as.data.frame(catIncomeType)
 names(dfCatIncomeType) <- c("Categoria","Cantidad")
-
 # Ordenamos
 dfCatIncomeType <- transform(dfCatIncomeType, Categoria=reorder(Categoria, Cantidad))
-
 ggplot(dfCatIncomeType) + 
   geom_bar(
     aes(x=Categoria, y=Cantidad), 
@@ -1117,33 +1064,33 @@ ggplot(dfCreditCard) +
 
 Se visualiza una relación entre las variables. Podría ser un posible predictor.
 
-
 # Construcción del Modelo Predictivo
 
 ## 1 - Preparar los datasets de Training y de Testing
+
+Dividimos el set de datos en un 80% para entrenamiento y un 20% para prueba.
+
+```{r}
+muestra <- floor(nrow(dfCreditCard) * 0.8)
+trainingIndex <- sample(nrow(dfCreditCard), muestra, replace=FALSE)
+testIndex <- seq_len(nrow(dfCreditCard))[!(seq_len(nrow(dfCreditCard)) %in% trainingIndex)]
+dfTrainLR <- dfCreditCard[trainingIndex,]
+dfTestLR <- dfCreditCard[testIndex,]
+```
+
+```{r}
+summary(dfTrainLR)
+```
 
 Se observa en la variable objetivo que la muestra está muy desbalanceada. 
 
 Se decidió aplicar la técnica SMOTE (Synthetic Minority Over-Sampling Technique) para mejorar el balance.
 
 ```{r}
-dfCreditCardSMOTE <- SMOTE(Approve ~ ., dfCreditCard, perc.over = 500, k=5, perc.under=150)
-str(dfCreditCardSMOTE)
-summary(dfCreditCardSMOTE)
+dfTrainLR <- SMOTE(Approve ~ ., dfTrainLR, perc.over = 500, k=5, perc.under=150)
+str(dfTrainLR)
+summary(dfTrainLR)
 ```
-
-
-Dividimos el set de datos en un 80% para entrenamiento y un 20% para prueba.
-
-```{r}
-muestra <- floor(nrow(dfCreditCardSMOTE) * 0.8)
-trainingIndex <- sample(nrow(dfCreditCardSMOTE), muestra, replace=FALSE)
-testIndex <- seq_len(nrow(dfCreditCardSMOTE))[!(seq_len(nrow(dfCreditCardSMOTE)) %in% trainingIndex)]
-
-dfTrainLR <- dfCreditCardSMOTE[trainingIndex,]
-dfTestLR <- dfCreditCardSMOTE[testIndex,]
-```
-
 
 ## 2 - Fittiamos el modelo de Regresión Logística
 
@@ -1177,7 +1124,6 @@ modeloLR <- glm(formula, data=dfTrainLR, family=binomial(link="logit"))
 summary(modeloLR)
 ```
 
-
 #### 2.3.2 - Evaluamos el modelo
 
 ##### 2.3.2.1 - Plotear distribución de predicciones
@@ -1185,7 +1131,6 @@ summary(modeloLR)
 ```{r}
 dfTrainLR$pred <- predict(modeloLR, newdata= dfTrainLR, type="response")
 dfTestLR$pred <- predict(modeloLR, newdata= dfTestLR, type="response")
-
 ggplot(dfTrainLR) + 
   geom_density(aes(x=pred, colour=as.factor(Approve), linetype=as.factor(Approve))) +
   xlab("Predicción") + 
@@ -1193,8 +1138,7 @@ ggplot(dfTrainLR) +
   theme_bw()
 ```
 
-Se observan los los picos bien definidos, pero mucho ruido dentro de cada categoría.
-
+Se observan los los picos bien definidos y mucho ruido dentro de cada categoría.
 
 ##### 2.3.2.2 - Matriz de Confusión
 
@@ -1202,29 +1146,26 @@ Probamos con un umbral del 55%.
 
 ```{r}
 thresh <- 0.55
-
 predObj <-prediction(dfTrainLR$pred, dfTrainLR$Approve)
 precObj <- performance(predObj, measure = "prec")
 recObj <- performance(predObj, measure = "rec")
-
 precision <- (precObj@y.values)[[1]]
 prec.x <- (precObj@x.values)[[1]]
 recall <- (recObj@y.values)[[1]]
-
 pnull <- (length(which(dfTrainLR$Approve == 1)) / length(which(dfTrainLR$Approve != 2)))
 pnull
-
 ctab.test <- table(prediccion=as.numeric(dfTestLR$pred > thresh), datos=dfTestLR$Approve)
 ctab.test
-
 precision <- ctab.test[2,2]/sum(ctab.test[2,])
 paste("Precision:", precision)
-
 recall <- ctab.test[2,2]/sum(ctab.test[,2])
 paste("Recall:",recall)
-
 enrich <- precision / pnull
 paste("Enrich:",enrich)
+PorcFalsosDetect <- ctab.test[1,1]/sum(ctab.test[,1])
+PorcPositivosRech <- ctab.test[1,2]/sum(ctab.test[,2])
+paste("% Falsos detectados: ", round(PorcFalsosDetect * 100, digits=2))
+paste("% Creditos buenos rechazados: ", round(PorcPositivosRech * 100, digits=2))
 ```
 
 ##### 2.3.2.3 - Curva ROC
@@ -1236,7 +1177,6 @@ sensObj <- performance(predObj, measure="sens")
 specObj <- performance(predObj, measure="spec")
 sensitivity <- (sensObj@y.values)[[1]]
 specificity <- (specObj@y.values)[[1]]
-
 dfplot <- data.frame(specm1=1-specificity, sens=sensitivity)
 fig <- ggplot(dfplot, aes(x=specm1, y=sens))
 fig <- fig + geom_line(color="red", size=1.25)
@@ -1249,15 +1189,12 @@ fig
 
 La capacidad de predicción de este modelo es muy baja. Vamos a Reentrenar el modelo con mayor cantidad de variables.
 
-
 ### 2.4 - Probamos re-entrenar el modelo
 
-Del resto de los predictores nos parece que van a estar relacionados con OCCUPATION_TYPE los siguientes : NAME_EDUCATION_TYPE, NAME_HOUSING_TYPE y NAME_INCOME_TYPE, no los vamos a usar como predictores. 
-
-Vamos a probar re-entrenar el modelo con los siguientes predictores
+Probaremos con el resto de los predictores.
 
 ```{r}
-predictores <- c("OCCUPATION_TYPE", "AGE", "FLAG_WORK_PHONE", "FLAG_EMAIL", "NAME_FAMILY_STATUS", "YEARS_EMPLOYED", "FLAG_OWN_REALTY", "AMT_INCOME_TOTAL")
+predictores <- c("CODE_GENDER", "FLAG_OWN_CAR", "FLAG_OWN_REALTY", "CNT_CHILDREN", "AMT_INCOME_TOTAL", "NAME_INCOME_TYPE", "NAME_EDUCATION_TYPE", "NAME_FAMILY_STATUS", "NAME_HOUSING_TYPE","DAYS_BIRTH", "DAYS_EMPLOYED", "FLAG_WORK_PHONE", "FLAG_PHONE", "FLAG_EMAIL", "OCCUPATION_TYPE", "CNT_FAM_MEMBERS", "AGE", "YEARS_EMPLOYED")
 print("Predictores:")
 print(predictores)
 ```
@@ -1267,27 +1204,7 @@ formula <- paste(objetivo, paste(predictores, collapse = " + "), sep=" ~ ")
 modeloLR <- glm(formula, data=dfTrainLR, family=binomial(link="logit"))
 ```
 
-Visualizamos el summary del modelo
-
-```{r}
-summary(modeloLR)
-```
-
-Salvo EMAIL, el resto parecen ser buenos predictores. Reentrenemos el modelo excluyendo esa variable.
-
-```{r}
-predictores <- c("OCCUPATION_TYPE", "AGE", "FLAG_WORK_PHONE", "NAME_FAMILY_STATUS", "YEARS_EMPLOYED", "FLAG_OWN_REALTY", "AMT_INCOME_TOTAL")
-print("Predictores:")
-print(predictores)
-```
-
-
-```{r}
-formula <- paste(objetivo, paste(predictores, collapse = " + "), sep=" ~ ")
-modeloLR <- glm(formula, data=dfTrainLR, family=binomial(link="logit"))
-```
-
-Visualizamos el summary del modelo
+Visualizamos el summary del modelo.
 
 ```{r}
 summary(modeloLR)
@@ -1299,17 +1216,12 @@ Visualizamos el Factor de Inflación de Varianza:
 vif(modeloLR)
 ```
 
-Para todas las variables es menor a 5, es decir no están correlacionadas.
-
-
 #### 2.4.1 - Evaluamos el modelo
 
 ##### 2.4.1.1 - Plotear distribución de predicciones
 
 ```{r}
 dfTrainLR$pred <- predict(modeloLR, newdata= dfTrainLR, type="response")
-dfTestLR$pred <- predict(modeloLR, newdata= dfTestLR, type="response")
-
 ggplot(dfTrainLR) + 
   geom_density(aes(x=pred, colour=as.factor(Approve), linetype=as.factor(Approve))) +
   xlab("Predicción") + 
@@ -1317,38 +1229,32 @@ ggplot(dfTrainLR) +
   theme_bw()
 ```
 
-Se observan los los picos bien definidos, disminuyó el ruido dentro de cada categoría.
-
-
 ##### 2.4.1.2 - Matriz de Confusión
 
-Probamos con un umbral del 55%.
+Probamos con un umbral del 50%.
 
 ```{r}
-thresh <- 0.55
-
+thresh <- 0.50
 predObj <-prediction(dfTrainLR$pred, dfTrainLR$Approve)
 precObj <- performance(predObj, measure = "prec")
 recObj <- performance(predObj, measure = "rec")
-
 precision <- (precObj@y.values)[[1]]
 prec.x <- (precObj@x.values)[[1]]
 recall <- (recObj@y.values)[[1]]
-
 pnull <- (length(which(dfTrainLR$Approve == 1)) / length(which(dfTrainLR$Approve != 2)))
 pnull
-
 ctab.test <- table(prediccion=as.numeric(dfTestLR$pred > thresh), datos=dfTestLR$Approve)
 ctab.test
-
 precision <- ctab.test[2,2]/sum(ctab.test[2,])
 paste("Precision:", precision)
-
 recall <- ctab.test[2,2]/sum(ctab.test[,2])
 paste("Recall:",recall)
-
 enrich <- precision / pnull
 paste("Enrich:",enrich)
+PorcFalsosDetect <- ctab.test[1,1]/sum(ctab.test[,1])
+PorcPositivosRech <- ctab.test[1,2]/sum(ctab.test[,2])
+paste("% Falsos detectados: ", round(PorcFalsosDetect * 100, digits=2))
+paste("% Creditos buenos rechazados: ", round(PorcPositivosRech * 100, digits=2))
 ```
 
 ##### 2.4.1.3 - Curva ROC
@@ -1360,7 +1266,6 @@ sensObj <- performance(predObj, measure="sens")
 specObj <- performance(predObj, measure="spec")
 sensitivity <- (sensObj@y.values)[[1]]
 specificity <- (specObj@y.values)[[1]]
-
 dfplot <- data.frame(specm1=1-specificity, sens=sensitivity)
 fig <- ggplot(dfplot, aes(x=specm1, y=sens))
 fig <- fig + geom_line(color="red", size=1.25)
@@ -1371,43 +1276,14 @@ fig <- fig + ylab("Sensibilidad")
 fig
 ```
 
-Observamos que este modelo tiene una leve mejora en las capacidades de predicción con respecto al modelo anterior.
+Comparando la curva ROC observamos que el modelo perdió capacidades de predicción.
 
+### 2.5 - Probamos re-entrenar el modelo
 
-### 2.5 - Probamos re-entrenar el modelo para comparar
-
-Además de la variable EMAIL descartada por no funcionar bien como predictor nos quedan las variables que podrían estar relacionadas con OCCUPATION_TYPE. Vamos a probar que pasa si incluimos esas variables.
-
-```{r}
-predictores <- c("OCCUPATION_TYPE", "AGE", "FLAG_WORK_PHONE", "NAME_FAMILY_STATUS", "YEARS_EMPLOYED", "FLAG_OWN_REALTY", "AMT_INCOME_TOTAL", "NAME_INCOME_TYPE", "NAME_EDUCATION_TYPE", "NAME_HOUSING_TYPE")
-print("Predictores:")
-print(predictores)
-```
+Vamos a quitar NAME_EDUCATION_TYPE y re-entrenar el modelo.
 
 ```{r}
-formula <- paste(objetivo, paste(predictores, collapse = " + "), sep=" ~ ")
-modeloLR <- glm(formula, data=dfTrainLR, family=binomial(link="logit"))
-```
-
-Visualizamos el summary del modelo
-
-```{r}
-summary(modeloLR)
-```
-
-Al incorporarlas bajó la capacidad de predicción del resto de las variables.
-
-Visualizamos el Factor de Inflación de Varianza:
-
-```{r}
-vif(modeloLR)
-```
-
-La variable NAME_EDUCATION_TYPE parece ser la más relacionada, probamos excluirla del modelo.
-
-
-```{r}
-predictores <- c("OCCUPATION_TYPE", "AGE", "FLAG_WORK_PHONE", "NAME_FAMILY_STATUS", "YEARS_EMPLOYED", "FLAG_OWN_REALTY", "AMT_INCOME_TOTAL", "NAME_INCOME_TYPE", "NAME_HOUSING_TYPE")
+predictores <- c("CODE_GENDER", "FLAG_OWN_CAR", "FLAG_OWN_REALTY", "CNT_CHILDREN", "AMT_INCOME_TOTAL", "NAME_INCOME_TYPE", "NAME_FAMILY_STATUS", "NAME_HOUSING_TYPE","DAYS_BIRTH", "DAYS_EMPLOYED", "FLAG_WORK_PHONE", "FLAG_PHONE", "FLAG_EMAIL", "OCCUPATION_TYPE", "CNT_FAM_MEMBERS", "AGE", "YEARS_EMPLOYED")
 print("Predictores:")
 print(predictores)
 ```
@@ -1428,9 +1304,6 @@ Visualizamos el Factor de Inflación de Varianza:
 ```{r}
 vif(modeloLR)
 ```
-
-Para todas las variables es menor a 5, es decir no están correlacionadas.
-
 
 #### 2.5.1 - Evaluamos el modelo
 
@@ -1438,8 +1311,6 @@ Para todas las variables es menor a 5, es decir no están correlacionadas.
 
 ```{r}
 dfTrainLR$pred <- predict(modeloLR, newdata= dfTrainLR, type="response")
-dfTestLR$pred <- predict(modeloLR, newdata= dfTestLR, type="response")
-
 ggplot(dfTrainLR) + 
   geom_density(aes(x=pred, colour=as.factor(Approve), linetype=as.factor(Approve))) +
   xlab("Predicción") + 
@@ -1447,38 +1318,32 @@ ggplot(dfTrainLR) +
   theme_bw()
 ```
 
-Se observan los los picos bien definidos, disminuyó un poco el ruido dentro de cada categoría.
-
-
 ##### 2.5.1.2 - Matriz de Confusión
 
-Probamos con un umbral del 55%.
+Probamos con un umbral del 50%.
 
 ```{r}
-thresh <- 0.55
-
+thresh <- 0.50
 predObj <-prediction(dfTrainLR$pred, dfTrainLR$Approve)
 precObj <- performance(predObj, measure = "prec")
 recObj <- performance(predObj, measure = "rec")
-
 precision <- (precObj@y.values)[[1]]
 prec.x <- (precObj@x.values)[[1]]
 recall <- (recObj@y.values)[[1]]
-
 pnull <- (length(which(dfTrainLR$Approve == 1)) / length(which(dfTrainLR$Approve != 2)))
 pnull
-
 ctab.test <- table(prediccion=as.numeric(dfTestLR$pred > thresh), datos=dfTestLR$Approve)
 ctab.test
-
 precision <- ctab.test[2,2]/sum(ctab.test[2,])
 paste("Precision:", precision)
-
 recall <- ctab.test[2,2]/sum(ctab.test[,2])
 paste("Recall:",recall)
-
 enrich <- precision / pnull
 paste("Enrich:",enrich)
+PorcFalsosDetect <- ctab.test[1,1]/sum(ctab.test[,1])
+PorcPositivosRech <- ctab.test[1,2]/sum(ctab.test[,2])
+paste("% Falsos detectados: ", round(PorcFalsosDetect * 100, digits=2))
+paste("% Creditos buenos rechazados: ", round(PorcPositivosRech * 100, digits=2))
 ```
 
 ##### 2.5.1.3 - Curva ROC
@@ -1490,7 +1355,6 @@ sensObj <- performance(predObj, measure="sens")
 specObj <- performance(predObj, measure="spec")
 sensitivity <- (sensObj@y.values)[[1]]
 specificity <- (specObj@y.values)[[1]]
-
 dfplot <- data.frame(specm1=1-specificity, sens=sensitivity)
 fig <- ggplot(dfplot, aes(x=specm1, y=sens))
 fig <- fig + geom_line(color="red", size=1.25)
@@ -1501,15 +1365,12 @@ fig <- fig + ylab("Sensibilidad")
 fig
 ```
 
-Observamos que este modelo tiene una leve mejora en las capacidades de predicción con respecto al modelo anterior.
+### 2.6 - Probamos re-entrenar el modelo
 
-
-### 2.6 - Probamos re-entrenar el modelo con una variante mas
-
-Como indica la bibliografía, la regresión logística pierde capacidad de predicción con variables categóricas con muchos niveles. Como la variable OCCUPATION_TYPE tiene 19 niveles, vamos a probar sacarla para ver que pasa.
+Vamos a quitar AGE y re-entrenar el modelo.
 
 ```{r}
-predictores <- c("AGE", "FLAG_WORK_PHONE", "NAME_FAMILY_STATUS", "YEARS_EMPLOYED", "FLAG_OWN_REALTY", "AMT_INCOME_TOTAL", "NAME_INCOME_TYPE", "NAME_HOUSING_TYPE")
+predictores <- c("CODE_GENDER", "FLAG_OWN_CAR", "FLAG_OWN_REALTY", "CNT_CHILDREN", "AMT_INCOME_TOTAL", "NAME_INCOME_TYPE", "NAME_FAMILY_STATUS", "NAME_HOUSING_TYPE","DAYS_BIRTH", "DAYS_EMPLOYED", "FLAG_WORK_PHONE", "FLAG_PHONE", "FLAG_EMAIL", "OCCUPATION_TYPE", "CNT_FAM_MEMBERS", "YEARS_EMPLOYED")
 print("Predictores:")
 print(predictores)
 ```
@@ -1537,8 +1398,6 @@ vif(modeloLR)
 
 ```{r}
 dfTrainLR$pred <- predict(modeloLR, newdata= dfTrainLR, type="response")
-dfTestLR$pred <- predict(modeloLR, newdata= dfTestLR, type="response")
-
 ggplot(dfTrainLR) + 
   geom_density(aes(x=pred, colour=as.factor(Approve), linetype=as.factor(Approve))) +
   xlab("Predicción") + 
@@ -1546,37 +1405,32 @@ ggplot(dfTrainLR) +
   theme_bw()
 ```
 
-Se observa que se produce más ruido en especial en la curva para los créditos de mala calidad (Approve=0)
-
 ##### 2.6.1.2 - Matriz de Confusión
 
 Probamos con un umbral del 50%.
 
 ```{r}
 thresh <- 0.50
-
 predObj <-prediction(dfTrainLR$pred, dfTrainLR$Approve)
 precObj <- performance(predObj, measure = "prec")
 recObj <- performance(predObj, measure = "rec")
-
 precision <- (precObj@y.values)[[1]]
 prec.x <- (precObj@x.values)[[1]]
 recall <- (recObj@y.values)[[1]]
-
 pnull <- (length(which(dfTrainLR$Approve == 1)) / length(which(dfTrainLR$Approve != 2)))
 pnull
-
 ctab.test <- table(prediccion=as.numeric(dfTestLR$pred > thresh), datos=dfTestLR$Approve)
 ctab.test
-
 precision <- ctab.test[2,2]/sum(ctab.test[2,])
 paste("Precision:", precision)
-
 recall <- ctab.test[2,2]/sum(ctab.test[,2])
 paste("Recall:",recall)
-
 enrich <- precision / pnull
 paste("Enrich:",enrich)
+PorcFalsosDetect <- ctab.test[1,1]/sum(ctab.test[,1])
+PorcPositivosRech <- ctab.test[1,2]/sum(ctab.test[,2])
+paste("% Falsos detectados: ", round(PorcFalsosDetect * 100, digits=2))
+paste("% Creditos buenos rechazados: ", round(PorcPositivosRech * 100, digits=2))
 ```
 
 ##### 2.6.1.3 - Curva ROC
@@ -1588,7 +1442,6 @@ sensObj <- performance(predObj, measure="sens")
 specObj <- performance(predObj, measure="spec")
 sensitivity <- (sensObj@y.values)[[1]]
 specificity <- (specObj@y.values)[[1]]
-
 dfplot <- data.frame(specm1=1-specificity, sens=sensitivity)
 fig <- ggplot(dfplot, aes(x=specm1, y=sens))
 fig <- fig + geom_line(color="red", size=1.25)
@@ -1599,15 +1452,98 @@ fig <- fig + ylab("Sensibilidad")
 fig
 ```
 
-Comparando la curva ROC observamos que el modelo perdió capacidades de predicción.
+### 2.7 - Probamos re-entrenar el modelo
 
+Vamos a quitar YEARS_EMPLOYED y re-entrenar el modelo.
 
-## 3 - Ajustamos el umbral del modelo seleccionado (2.5)
+```{r}
+predictores <- c("CODE_GENDER", "FLAG_OWN_CAR", "FLAG_OWN_REALTY", "CNT_CHILDREN", "AMT_INCOME_TOTAL", "NAME_INCOME_TYPE", "NAME_FAMILY_STATUS", "NAME_HOUSING_TYPE","DAYS_BIRTH", "DAYS_EMPLOYED", "FLAG_WORK_PHONE", "FLAG_PHONE", "FLAG_EMAIL", "OCCUPATION_TYPE", "CNT_FAM_MEMBERS")
+print("Predictores:")
+print(predictores)
+```
+```{r}
+formula <- paste(objetivo, paste(predictores, collapse = " + "), sep=" ~ ")
+modeloLR <- glm(formula, data=dfTrainLR, family=binomial(link="logit"))
+```
+
+Visualizamos el summary del modelo
+
+```{r}
+summary(modeloLR)
+```
+
+Visualizamos el Factor de Inflación de Varianza:
+
+```{r}
+vif(modeloLR)
+```
+
+#### 2.7.1 - Evaluamos el modelo
+
+##### 2.7.1.1 - Plotear distribución de predicciones
+
+```{r}
+dfTrainLR$pred <- predict(modeloLR, newdata= dfTrainLR, type="response")
+ggplot(dfTrainLR) + 
+  geom_density(aes(x=pred, colour=as.factor(Approve), linetype=as.factor(Approve))) +
+  xlab("Predicción") + 
+  ylab("Densidad") +
+  theme_bw()
+```
+
+##### 2.7.1.2 - Matriz de Confusión
+
+Probamos con un umbral del 50%.
+
+```{r}
+thresh <- 0.50
+predObj <-prediction(dfTrainLR$pred, dfTrainLR$Approve)
+precObj <- performance(predObj, measure = "prec")
+recObj <- performance(predObj, measure = "rec")
+precision <- (precObj@y.values)[[1]]
+prec.x <- (precObj@x.values)[[1]]
+recall <- (recObj@y.values)[[1]]
+pnull <- (length(which(dfTrainLR$Approve == 1)) / length(which(dfTrainLR$Approve != 2)))
+pnull
+ctab.test <- table(prediccion=as.numeric(dfTestLR$pred > thresh), datos=dfTestLR$Approve)
+ctab.test
+precision <- ctab.test[2,2]/sum(ctab.test[2,])
+paste("Precision:", precision)
+recall <- ctab.test[2,2]/sum(ctab.test[,2])
+paste("Recall:",recall)
+enrich <- precision / pnull
+paste("Enrich:",enrich)
+PorcFalsosDetect <- ctab.test[1,1]/sum(ctab.test[,1])
+PorcPositivosRech <- ctab.test[1,2]/sum(ctab.test[,2])
+paste("% Falsos detectados: ", round(PorcFalsosDetect * 100, digits=2))
+paste("% Creditos buenos rechazados: ", round(PorcPositivosRech * 100, digits=2))
+```
+
+##### 2.7.1.3 - Curva ROC
+
+Antes de decidir ajustar el umbral graficamos la curva ROC para entender las capacidades de predicción del modelo.
+
+```{r}
+sensObj <- performance(predObj, measure="sens")
+specObj <- performance(predObj, measure="spec")
+sensitivity <- (sensObj@y.values)[[1]]
+specificity <- (specObj@y.values)[[1]]
+dfplot <- data.frame(specm1=1-specificity, sens=sensitivity)
+fig <- ggplot(dfplot, aes(x=specm1, y=sens))
+fig <- fig + geom_line(color="red", size=1.25)
+fig <- fig + geom_abline(aes(slope=1, intercept=0))
+fig <- fig + theme_bw()
+fig <- fig + xlab("1 - Especificidad")
+fig <- fig + ylab("Sensibilidad")
+fig
+```
+
+## 3 - Ajustamos el umbral del modelo seleccionado (2.7)
 
 ### 3.1 - Rearmamos el modelo
 
 ```{r}
-predictores <- c("OCCUPATION_TYPE", "AGE", "FLAG_WORK_PHONE", "NAME_FAMILY_STATUS", "YEARS_EMPLOYED", "FLAG_OWN_REALTY", "AMT_INCOME_TOTAL", "NAME_INCOME_TYPE", "NAME_HOUSING_TYPE")
+predictores <- c("CODE_GENDER", "FLAG_OWN_CAR", "FLAG_OWN_REALTY", "CNT_CHILDREN", "AMT_INCOME_TOTAL", "NAME_INCOME_TYPE", "NAME_FAMILY_STATUS", "NAME_HOUSING_TYPE","DAYS_BIRTH", "DAYS_EMPLOYED", "FLAG_WORK_PHONE", "FLAG_PHONE", "FLAG_EMAIL", "OCCUPATION_TYPE", "CNT_FAM_MEMBERS")
 formula <- paste(objetivo, paste(predictores, collapse = " + "), sep=" ~ ")
 modeloLR <- glm(formula, data=dfTrainLR, family=binomial(link="logit"))
 ```
@@ -1618,48 +1554,43 @@ modeloLR <- glm(formula, data=dfTrainLR, family=binomial(link="logit"))
 predObj <-prediction(dfTrainLR$pred, dfTrainLR$Approve)
 precObj <- performance(predObj, measure = "prec")
 recObj <- performance(predObj, measure = "rec")
-
 precision <- (precObj@y.values)[[1]]
 prec.x <- (precObj@x.values)[[1]]
 recall <- (recObj@y.values)[[1]]
-
 pnull <- (length(which(dfTrainLR$Approve == 1)) / length(which(dfTrainLR$Approve != 2)))
 pnull
-
 # Data for the plot
 dfplot <- data.frame(threshold=prec.x, precision=precision, recall=recall)
-
 p1 <- ggplot(dfplot, aes(x=threshold)) +
   geom_line(aes(y=precision/pnull)) +
   xlab("Umbral") +
   ylab("Precisión / P_0")
-
 p2 <- ggplot(dfplot, aes(x=threshold)) +
   geom_line(aes(y=recall)) +
   xlab("Umbral") +
   ylab("Exhaustividad")
-
 nplot(list(p1, p2))
 ```
 
 ### 3.2 - Creamos la matriz de confusión
 
 Tomamos un umbral del 50% para ir ajustando.
+
 ```{r}
 thresh <- 0.50
 ctab.test <- table(prediccion=as.numeric(dfTestLR$pred > thresh), datos=dfTestLR$Approve)
 ctab.test
-
 precision <- ctab.test[2,2]/sum(ctab.test[2,])
 paste("Precision:", precision)
-
 recall <- ctab.test[2,2]/sum(ctab.test[,2])
 paste("Recall:",recall)
-
 enrich <- precision / pnull
 paste("Enrich:",enrich)
+PorcFalsosDetect <- ctab.test[1,1]/sum(ctab.test[,1])
+PorcPositivosRech <- ctab.test[1,2]/sum(ctab.test[,2])
+paste("% Falsos detectados: ", round(PorcFalsosDetect * 100, digits=2))
+paste("% Creditos buenos rechazados: ", round(PorcPositivosRech * 100, digits=2))
 ```
-
 
 ### 3.3 - Ajustamos el Umbral del modelo
 
@@ -1669,54 +1600,17 @@ Probamos con 45%, 55%, 60% y 65%. El mejor balance para las necesidades de negoc
 thresh <- 0.55
 ctab.test <- table(prediccion=as.numeric(dfTestLR$pred > thresh), datos=dfTestLR$Approve)
 ctab.test
-
 precision <- ctab.test[2,2]/sum(ctab.test[2,])
 paste("Precision:", precision)
-
 recall <- ctab.test[2,2]/sum(ctab.test[,2])
 paste("Recall:",recall)
-
 enrich <- precision / pnull
 paste("Enrich:",enrich)
-
 PorcFalsosDetect <- ctab.test[1,1]/sum(ctab.test[,1])
 PorcPositivosRech <- ctab.test[1,2]/sum(ctab.test[,2])
 paste("% Falsos detectados: ", round(PorcFalsosDetect * 100, digits=2))
 paste("% Creditos buenos rechazados: ", round(PorcPositivosRech * 100, digits=2))
-
 ```
-
-### 3.4 - Que pasa si probamos contra el set de datos original?
-
-Como ejercicio queremos saber que pasa si exponemos el modelo ajustado al set de datos original, para ver que resultados obtenemos.
-
-```{r}
-dfCreditCard$NAME_INCOME_TYPE[dfCreditCard$NAME_INCOME_TYPE == "Student"] <- "Working"
-
-dfCreditCard$pred <- predict(modeloLR, newdata= dfCreditCard, type="response")
-thresh <- 0.55
-ctab.test <- table(prediccion=as.numeric(dfCreditCard$pred > thresh), datos=dfCreditCard$Approve)
-ctab.test
-
-precision <- ctab.test[2,2]/sum(ctab.test[2,])
-paste("Precision:", precision)
-
-recall <- ctab.test[2,2]/sum(ctab.test[,2])
-paste("Recall:",recall)
-
-enrich <- precision / pnull
-paste("Enrich:",enrich)
-
-PorcFalsosDetect <- ctab.test[1,1]/sum(ctab.test[,1])
-PorcPositivosRech <- ctab.test[1,2]/sum(ctab.test[,2])
-paste("% Falsos detectados: ", round(PorcFalsosDetect * 100, digits=2))
-paste("% Creditos buenos rechazados: ", round(PorcPositivosRech * 100, digits=2))
-
-```
-
-El modelo de predicción funcionó bien para la detección de créditos buenos, no rechazó más de 1/4 de los mismos.
-
-Sin embargo, no funcionó nada bien para la detección de créditos malos, solo pudo detectar un 30%.
 
 # Análisis de Resultados y Conclusiones
 
@@ -1737,3 +1631,38 @@ Por todo esto, entendemos que el proceso de Ciencia de Datos aplicado hasta el m
 Una primera solución podría ser tratar de conseguir un set de datos con mayor porcentaje de deudores. En este set solo se tiene información de 382 casos, que podría ser muy poco para que el algoritmo entrene correctamente.
 
 También existen otros algoritmos de clasificación que podrían probarse con el set de datos actual como Arboles de Decisión, Random Forest o Support Vector Machines, y verificar si mejoran la capacidad de predicción.
+
+
+***ToDo***
+
+- Falta análisis de gráficos y conclusión
+- Falta ajustar thresholds
+
+
+---
+
+### 3.4 - Que pasa si probamos contra el set de datos original?
+
+Como ejercicio queremos saber que pasa si exponemos el modelo ajustado al set de datos original, para ver que resultados obtenemos.
+
+```{r}
+dfCreditCard$NAME_INCOME_TYPE[dfCreditCard$NAME_INCOME_TYPE == "Student"] <- "Working"
+dfCreditCard$pred <- predict(modeloLR, newdata= dfCreditCard, type="response")
+thresh <- 0.55
+ctab.test <- table(prediccion=as.numeric(dfCreditCard$pred > thresh), datos=dfCreditCard$Approve)
+ctab.test
+precision <- ctab.test[2,2]/sum(ctab.test[2,])
+paste("Precision:", precision)
+recall <- ctab.test[2,2]/sum(ctab.test[,2])
+paste("Recall:",recall)
+enrich <- precision / pnull
+paste("Enrich:",enrich)
+PorcFalsosDetect <- ctab.test[1,1]/sum(ctab.test[,1])
+PorcPositivosRech <- ctab.test[1,2]/sum(ctab.test[,2])
+paste("% Falsos detectados: ", round(PorcFalsosDetect * 100, digits=2))
+paste("% Creditos buenos rechazados: ", round(PorcPositivosRech * 100, digits=2))
+```
+
+El modelo de predicción funcionó bien para la detección de créditos buenos, no rechazó más de 1/4 de los mismos.
+
+Sin embargo, no funcionó nada bien para la detección de créditos malos, solo pudo detectar un 30%.
