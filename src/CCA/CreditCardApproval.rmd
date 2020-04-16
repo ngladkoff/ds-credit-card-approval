@@ -1122,27 +1122,49 @@ Se visualiza una relación entre las variables. Podría ser un posible predictor
 
 ## 1 - Preparar los datasets de Training y de Testing
 
-Se observa en la variable objetivo que la muestra está muy desbalanceada. 
-
-Se decidió aplicar la técnica SMOTE (Synthetic Minority Over-Sampling Technique) para mejorar el balance.
-
-```{r}
-dfCreditCardSMOTE <- SMOTE(Approve ~ ., dfCreditCard, perc.over = 500, k=5, perc.under=150)
-str(dfCreditCardSMOTE)
-summary(dfCreditCardSMOTE)
-```
-
-
 Dividimos el set de datos en un 80% para entrenamiento y un 20% para prueba.
 
 ```{r}
-muestra <- floor(nrow(dfCreditCardSMOTE) * 0.8)
-trainingIndex <- sample(nrow(dfCreditCardSMOTE), muestra, replace=FALSE)
-testIndex <- seq_len(nrow(dfCreditCardSMOTE))[!(seq_len(nrow(dfCreditCardSMOTE)) %in% trainingIndex)]
+muestra <- floor(nrow(dfCreditCard) * 0.8)
+trainingIndex <- sample(nrow(dfCreditCard), muestra, replace=FALSE)
+testIndex <- seq_len(nrow(dfCreditCard))[!(seq_len(nrow(dfCreditCard)) %in% trainingIndex)]
 
-dfTrainLR <- dfCreditCardSMOTE[trainingIndex,]
-dfTestLR <- dfCreditCardSMOTE[testIndex,]
+dfTrainLR <- dfCreditCard[trainingIndex,]
+dfTestLR <- dfCreditCard[testIndex,]
 ```
+
+Como la variable objetivo está muy desbalanceada se decidió aplicar la técnica SMOTE (Synthetic Minority Over-Sampling Technique) para mejorar el balance. 
+
+Aplicamos la técnica SMOTE, con un over de 500% para el grupo minoritario y un under de 150% para el grupo mayoritario. Con un un k=5 que representa el número de vecinos cercanos que va a utilzar el algoritmo. La cantidad de vecinos cercanos tomamos la que utiliza la técnica por defecto, mientras que los % de grupos minoritarios y mayoritarios los fuimos ajustamos un par de veces hasta que nos dió balanceada la cantidad de Creditos Buenos y Creditos Malos.
+
+***Prueba con OverSampling***
+
+```{r}
+
+dfTrainTrue <- filter(dfTrainLR, dfTrainLR$Approve == 1)
+dfTrainFalse <- filter(dfTrainLR, dfTrainLR$Approve == 0)
+
+trainFalseIdx <- sample(nrow(dfTrainFalse), size=3000, replace = TRUE)
+dfTrainFalse <- dfTrainFalse[trainFalseIdx,]
+
+# Probamos sin hacer este undersampling y también da mal
+trainTrueIdx <- sample(nrow(dfTrainTrue), size=5000, replace = FALSE)
+dfTrainTrue <- dfTrainTrue[trainTrueIdx,]
+
+
+dfTrainLR <- rbind(dfTrainTrue, dfTrainFalse)
+
+```
+
+
+***Prueba con SMOTE***
+
+```{r}
+
+#dfTrainLR <- SMOTE(Approve ~ ., dfTrainLR, perc.over = 500, k=5, perc.under=150)
+
+```
+
 
 
 ## 2 - Fittiamos el modelo de Regresión Logística
@@ -1455,7 +1477,7 @@ Se observan los los picos bien definidos, disminuyó un poco el ruido dentro de 
 Probamos con un umbral del 55%.
 
 ```{r}
-thresh <- 0.55
+thresh <- 0.40
 
 predObj <-prediction(dfTrainLR$pred, dfTrainLR$Approve)
 precObj <- performance(predObj, measure = "prec")

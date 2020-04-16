@@ -10,7 +10,7 @@ hacer un oversampling
 
 triplicar la cant de registros de la cant menor
 
-undersampling quedarnos con 2000 o 3000 negativos
+undersampling quedarnos con 2000 o 3000 positivos
 
 Ver si nos va mejor o si sigue dando mal
 
