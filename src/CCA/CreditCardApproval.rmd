@@ -3,10 +3,10 @@ title: "UADE - Maestria TIC - Ciencia de Datos - Modelo de predicción para apro
 author: "Marcelo Capozzi (LU: 1119183) - Nicolas Gladkoff (LU: 1085075)"
 date: "Abril 2020"
 output:
+  html_notebook: default
+  pdf_document: default
   html_document:
     df_print: paged
-  pdf_document: default
-  html_notebook: default
 ---
 
 #### GitHub:
@@ -1081,10 +1081,10 @@ dfTestLR <- dfCreditCard[testIndex,]
 ```{r}
 summary(dfTrainLR)
 ```
+Como la variable objetivo está muy desbalanceada se decidió aplicar la técnica SMOTE (Synthetic Minority Over-Sampling Technique) para mejorar el balance. 
 
-Se observa en la variable objetivo que la muestra está muy desbalanceada. 
+Aplicamos la técnica SMOTE, con un over de 500% para el grupo minoritario y un under de 150% para el grupo mayoritario. Con un un k=5 que representa el número de vecinos cercanos que va a utilzar el algoritmo. La cantidad de vecinos cercanos tomamos la que utiliza la técnica por defecto, mientras que los % de grupos minoritarios y mayoritarios los fuimos ajustamos un par de veces hasta que nos dió balanceada la cantidad de Creditos Buenos y Creditos Malos.
 
-Se decidió aplicar la técnica SMOTE (Synthetic Minority Over-Sampling Technique) para mejorar el balance.
 
 ```{r}
 dfTrainLR <- SMOTE(Approve ~ ., dfTrainLR, perc.over = 500, k=5, perc.under=150)
@@ -1222,6 +1222,7 @@ vif(modeloLR)
 
 ```{r}
 dfTrainLR$pred <- predict(modeloLR, newdata= dfTrainLR, type="response")
+dfTestLR$pred <- predict(modeloLR, newdata= dfTestLR, type="response")
 ggplot(dfTrainLR) + 
   geom_density(aes(x=pred, colour=as.factor(Approve), linetype=as.factor(Approve))) +
   xlab("Predicción") + 
@@ -1311,6 +1312,7 @@ vif(modeloLR)
 
 ```{r}
 dfTrainLR$pred <- predict(modeloLR, newdata= dfTrainLR, type="response")
+dfTestLR$pred <- predict(modeloLR, newdata= dfTestLR, type="response")
 ggplot(dfTrainLR) + 
   geom_density(aes(x=pred, colour=as.factor(Approve), linetype=as.factor(Approve))) +
   xlab("Predicción") + 
@@ -1320,10 +1322,10 @@ ggplot(dfTrainLR) +
 
 ##### 2.5.1.2 - Matriz de Confusión
 
-Probamos con un umbral del 50%.
+Probamos con un umbral del 65%.
 
 ```{r}
-thresh <- 0.50
+thresh <- 0.65
 predObj <-prediction(dfTrainLR$pred, dfTrainLR$Approve)
 precObj <- performance(predObj, measure = "prec")
 recObj <- performance(predObj, measure = "rec")
@@ -1398,6 +1400,7 @@ vif(modeloLR)
 
 ```{r}
 dfTrainLR$pred <- predict(modeloLR, newdata= dfTrainLR, type="response")
+dfTestLR$pred <- predict(modeloLR, newdata= dfTestLR, type="response")
 ggplot(dfTrainLR) + 
   geom_density(aes(x=pred, colour=as.factor(Approve), linetype=as.factor(Approve))) +
   xlab("Predicción") + 
@@ -1407,10 +1410,10 @@ ggplot(dfTrainLR) +
 
 ##### 2.6.1.2 - Matriz de Confusión
 
-Probamos con un umbral del 50%.
+Probamos con un umbral del 65%.
 
 ```{r}
-thresh <- 0.50
+thresh <- 0.65
 predObj <-prediction(dfTrainLR$pred, dfTrainLR$Approve)
 precObj <- performance(predObj, measure = "prec")
 recObj <- performance(predObj, measure = "rec")
@@ -1484,6 +1487,7 @@ vif(modeloLR)
 
 ```{r}
 dfTrainLR$pred <- predict(modeloLR, newdata= dfTrainLR, type="response")
+dfTestLR$pred <- predict(modeloLR, newdata= dfTestLR, type="response")
 ggplot(dfTrainLR) + 
   geom_density(aes(x=pred, colour=as.factor(Approve), linetype=as.factor(Approve))) +
   xlab("Predicción") + 
@@ -1546,6 +1550,9 @@ fig
 predictores <- c("CODE_GENDER", "FLAG_OWN_CAR", "FLAG_OWN_REALTY", "CNT_CHILDREN", "AMT_INCOME_TOTAL", "NAME_INCOME_TYPE", "NAME_FAMILY_STATUS", "NAME_HOUSING_TYPE","DAYS_BIRTH", "DAYS_EMPLOYED", "FLAG_WORK_PHONE", "FLAG_PHONE", "FLAG_EMAIL", "OCCUPATION_TYPE", "CNT_FAM_MEMBERS")
 formula <- paste(objetivo, paste(predictores, collapse = " + "), sep=" ~ ")
 modeloLR <- glm(formula, data=dfTrainLR, family=binomial(link="logit"))
+dfTrainLR$pred <- predict(modeloLR, newdata= dfTrainLR, type="response")
+dfTestLR$pred <- predict(modeloLR, newdata= dfTestLR, type="response")
+
 ```
 
 ### 3.2 - Graficamos la precisión y la exhaustividad
