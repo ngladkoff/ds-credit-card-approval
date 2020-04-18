@@ -3,10 +3,10 @@ title: "UADE - Maestria TIC - Ciencia de Datos - Modelo de predicción para apro
 author: "Marcelo Capozzi (LU: 1119183) - Nicolas Gladkoff (LU: 1085075)"
 date: "Abril 2020"
 output:
-  html_notebook: default
   pdf_document: default
   html_document:
     df_print: paged
+  html_notebook: default
 ---
 
 #### GitHub:
@@ -34,8 +34,7 @@ El presente trabajo busca evaluar si es posible predecir, en base a los datos de
 Para entrenar este modelo de predicción se analizarán los datos de la información histórica y del comportamiento de pago de los clientes pasados y actuales de la entidad.
 
 Considerando que este modelo va a utilizarse solamente para aquellas solicitudes que no cuenten con información crediticia previa, el negocio establece como suficiente que detecte 2 de cada 3 créditos malos. 
-
-No obstante, a pesar de que los créditos malos no son buenos para el negocio, se busca que no se pierdan en este proceso más de 1 de cada 4 créditos buenos.
+Además, se busca que sea capaz de detectar al menos 3 de cada 4 créditos buenos.
 
 
 # Datos
@@ -642,7 +641,7 @@ cm <- cor(dfcor)
 corrplot(cm, method = "number", type = "upper")
 ```
 
-Observamos en el gráfico que Cantidad de Hijos y Cantidad de Miembros Familiares están muy relaionados, nos parece más amplio el concepto de Miembros Familiares si hubiera que  seleccionarlo como predictor.
+Observamos en el gráfico que Cantidad de Hijos y Cantidad de Miembros Familiares están muy relaionados, nos parece más amplio el concepto de Miembros Familiares si hubiera que seleccionarlo como predictor.
 
 No observamos correlaciones significativas entre el resto de las variables.
 
@@ -859,6 +858,13 @@ Parece existir una muy ligera diferencia, podría ser un posible predictor.
 #### 4.3.8 - Variable: NAME_INCOME_TYPE
 
 ##### NAME_INCOME_TYPE
+
+En esta variable se observó una categoría *student* muy poco representada, sin casos negativos, que va a generar ruido en el modelo predictivo. A los fines del análisis se decidió reemplazarlos por la categoría mas representativa *working*
+```{r}
+dfCreditCard$NAME_INCOME_TYPE[dfCreditCard$NAME_INCOME_TYPE == "Student"] <- "Working"
+dfCreditCard$NAME_INCOME_TYPE <- factor(dfCreditCard$NAME_INCOME_TYPE)
+```
+
 
 Para conocere la distribución de la muestra graficamos con barras diferentes categorías:
 
@@ -1194,7 +1200,8 @@ La capacidad de predicción de este modelo es muy baja. Vamos a Reentrenar el mo
 Probaremos con el resto de los predictores.
 
 ```{r}
-predictores <- c("CODE_GENDER", "FLAG_OWN_CAR", "FLAG_OWN_REALTY", "CNT_CHILDREN", "AMT_INCOME_TOTAL", "NAME_INCOME_TYPE", "NAME_EDUCATION_TYPE", "NAME_FAMILY_STATUS", "NAME_HOUSING_TYPE","DAYS_BIRTH", "DAYS_EMPLOYED", "FLAG_WORK_PHONE", "FLAG_PHONE", "FLAG_EMAIL", "OCCUPATION_TYPE", "CNT_FAM_MEMBERS", "AGE", "YEARS_EMPLOYED")
+predictores <- c("CODE_GENDER", "FLAG_OWN_CAR", "FLAG_OWN_REALTY", "AMT_INCOME_TOTAL", "NAME_INCOME_TYPE", "NAME_EDUCATION_TYPE", "NAME_FAMILY_STATUS", "NAME_HOUSING_TYPE", "FLAG_WORK_PHONE", "FLAG_PHONE", "FLAG_EMAIL", "OCCUPATION_TYPE", "CNT_FAM_MEMBERS", "AGE", "YEARS_EMPLOYED")
+
 print("Predictores:")
 print(predictores)
 ```
@@ -1216,6 +1223,8 @@ Visualizamos el Factor de Inflación de Varianza:
 vif(modeloLR)
 ```
 
+Observamos que NAME_EDUCATION_TYPE está muy correlacionado con otras variables.
+
 #### 2.4.1 - Evaluamos el modelo
 
 ##### 2.4.1.1 - Plotear distribución de predicciones
@@ -1230,61 +1239,15 @@ ggplot(dfTrainLR) +
   theme_bw()
 ```
 
-##### 2.4.1.2 - Matriz de Confusión
+La distribución de predicciones nos marca que este modelo no es el adecuado, no tenemos 2 picos claramente definidos.
 
-Probamos con un umbral del 50%.
-
-```{r}
-thresh <- 0.50
-predObj <-prediction(dfTrainLR$pred, dfTrainLR$Approve)
-precObj <- performance(predObj, measure = "prec")
-recObj <- performance(predObj, measure = "rec")
-precision <- (precObj@y.values)[[1]]
-prec.x <- (precObj@x.values)[[1]]
-recall <- (recObj@y.values)[[1]]
-pnull <- (length(which(dfTrainLR$Approve == 1)) / length(which(dfTrainLR$Approve != 2)))
-pnull
-ctab.test <- table(prediccion=as.numeric(dfTestLR$pred > thresh), datos=dfTestLR$Approve)
-ctab.test
-precision <- ctab.test[2,2]/sum(ctab.test[2,])
-paste("Precision:", precision)
-recall <- ctab.test[2,2]/sum(ctab.test[,2])
-paste("Recall:",recall)
-enrich <- precision / pnull
-paste("Enrich:",enrich)
-PorcFalsosDetect <- ctab.test[1,1]/sum(ctab.test[,1])
-PorcPositivosRech <- ctab.test[1,2]/sum(ctab.test[,2])
-paste("% Falsos detectados: ", round(PorcFalsosDetect * 100, digits=2))
-paste("% Creditos buenos rechazados: ", round(PorcPositivosRech * 100, digits=2))
-```
-
-##### 2.4.1.3 - Curva ROC
-
-Antes de decidir ajustar el umbral graficamos la curva ROC para entender las capacidades de predicción del modelo.
-
-```{r}
-sensObj <- performance(predObj, measure="sens")
-specObj <- performance(predObj, measure="spec")
-sensitivity <- (sensObj@y.values)[[1]]
-specificity <- (specObj@y.values)[[1]]
-dfplot <- data.frame(specm1=1-specificity, sens=sensitivity)
-fig <- ggplot(dfplot, aes(x=specm1, y=sens))
-fig <- fig + geom_line(color="red", size=1.25)
-fig <- fig + geom_abline(aes(slope=1, intercept=0))
-fig <- fig + theme_bw()
-fig <- fig + xlab("1 - Especificidad")
-fig <- fig + ylab("Sensibilidad")
-fig
-```
-
-Comparando la curva ROC observamos que el modelo perdió capacidades de predicción.
 
 ### 2.5 - Probamos re-entrenar el modelo
 
 Vamos a quitar NAME_EDUCATION_TYPE y re-entrenar el modelo.
 
 ```{r}
-predictores <- c("CODE_GENDER", "FLAG_OWN_CAR", "FLAG_OWN_REALTY", "CNT_CHILDREN", "AMT_INCOME_TOTAL", "NAME_INCOME_TYPE", "NAME_FAMILY_STATUS", "NAME_HOUSING_TYPE","DAYS_BIRTH", "DAYS_EMPLOYED", "FLAG_WORK_PHONE", "FLAG_PHONE", "FLAG_EMAIL", "OCCUPATION_TYPE", "CNT_FAM_MEMBERS", "AGE", "YEARS_EMPLOYED")
+predictores <- c("CODE_GENDER", "FLAG_OWN_CAR", "FLAG_OWN_REALTY", "AMT_INCOME_TOTAL", "NAME_INCOME_TYPE", "NAME_FAMILY_STATUS", "NAME_HOUSING_TYPE", "FLAG_WORK_PHONE", "FLAG_PHONE", "FLAG_EMAIL", "OCCUPATION_TYPE", "CNT_FAM_MEMBERS", "AGE", "YEARS_EMPLOYED")
 print("Predictores:")
 print(predictores)
 ```
@@ -1300,11 +1263,15 @@ Visualizamos el summary del modelo
 summary(modeloLR)
 ```
 
+Las variables AMT_INCOME_TOTAL y CNT_FAM_MEMBERS no parecen tener gran capacidad de predicción.
+
 Visualizamos el Factor de Inflación de Varianza:
 
 ```{r}
 vif(modeloLR)
 ```
+
+No se observan valores mayores a cinco que puedan estar indicando correlación entre variables.
 
 #### 2.5.1 - Evaluamos el modelo
 
@@ -1322,10 +1289,10 @@ ggplot(dfTrainLR) +
 
 ##### 2.5.1.2 - Matriz de Confusión
 
-Probamos con un umbral del 65%.
+Probamos con un umbral del 50%.
 
 ```{r}
-thresh <- 0.65
+thresh <- 0.50
 predObj <-prediction(dfTrainLR$pred, dfTrainLR$Approve)
 precObj <- performance(predObj, measure = "prec")
 recObj <- performance(predObj, measure = "rec")
@@ -1369,10 +1336,11 @@ fig
 
 ### 2.6 - Probamos re-entrenar el modelo
 
-Vamos a quitar AGE y re-entrenar el modelo.
+Vamos a quitar AMT_INCOME_TOTAL y CNT_FAM_MEMBERS para re-entrenar el modelo.
 
 ```{r}
-predictores <- c("CODE_GENDER", "FLAG_OWN_CAR", "FLAG_OWN_REALTY", "CNT_CHILDREN", "AMT_INCOME_TOTAL", "NAME_INCOME_TYPE", "NAME_FAMILY_STATUS", "NAME_HOUSING_TYPE","DAYS_BIRTH", "DAYS_EMPLOYED", "FLAG_WORK_PHONE", "FLAG_PHONE", "FLAG_EMAIL", "OCCUPATION_TYPE", "CNT_FAM_MEMBERS", "YEARS_EMPLOYED")
+predictores <- c("CODE_GENDER", "FLAG_OWN_CAR", "FLAG_OWN_REALTY", "NAME_INCOME_TYPE", "NAME_FAMILY_STATUS", "NAME_HOUSING_TYPE", "FLAG_WORK_PHONE", "FLAG_PHONE", "FLAG_EMAIL", "OCCUPATION_TYPE", "AGE", "YEARS_EMPLOYED")
+
 print("Predictores:")
 print(predictores)
 ```
@@ -1410,10 +1378,10 @@ ggplot(dfTrainLR) +
 
 ##### 2.6.1.2 - Matriz de Confusión
 
-Probamos con un umbral del 65%.
+Probamos con un umbral del 50%.
 
 ```{r}
-thresh <- 0.65
+thresh <- 0.50
 predObj <-prediction(dfTrainLR$pred, dfTrainLR$Approve)
 precObj <- performance(predObj, measure = "prec")
 recObj <- performance(predObj, measure = "rec")
@@ -1455,99 +1423,14 @@ fig <- fig + ylab("Sensibilidad")
 fig
 ```
 
-### 2.7 - Probamos re-entrenar el modelo
+## 3 - Ajustamos el umbral del modelo seleccionado (2.6)
 
-Vamos a quitar YEARS_EMPLOYED y re-entrenar el modelo.
-
-```{r}
-predictores <- c("CODE_GENDER", "FLAG_OWN_CAR", "FLAG_OWN_REALTY", "CNT_CHILDREN", "AMT_INCOME_TOTAL", "NAME_INCOME_TYPE", "NAME_FAMILY_STATUS", "NAME_HOUSING_TYPE","DAYS_BIRTH", "DAYS_EMPLOYED", "FLAG_WORK_PHONE", "FLAG_PHONE", "FLAG_EMAIL", "OCCUPATION_TYPE", "CNT_FAM_MEMBERS")
-print("Predictores:")
-print(predictores)
-```
-```{r}
-formula <- paste(objetivo, paste(predictores, collapse = " + "), sep=" ~ ")
-modeloLR <- glm(formula, data=dfTrainLR, family=binomial(link="logit"))
-```
-
-Visualizamos el summary del modelo
-
-```{r}
-summary(modeloLR)
-```
-
-Visualizamos el Factor de Inflación de Varianza:
-
-```{r}
-vif(modeloLR)
-```
-
-#### 2.7.1 - Evaluamos el modelo
-
-##### 2.7.1.1 - Plotear distribución de predicciones
-
-```{r}
-dfTrainLR$pred <- predict(modeloLR, newdata= dfTrainLR, type="response")
-dfTestLR$pred <- predict(modeloLR, newdata= dfTestLR, type="response")
-ggplot(dfTrainLR) + 
-  geom_density(aes(x=pred, colour=as.factor(Approve), linetype=as.factor(Approve))) +
-  xlab("Predicción") + 
-  ylab("Densidad") +
-  theme_bw()
-```
-
-##### 2.7.1.2 - Matriz de Confusión
-
-Probamos con un umbral del 50%.
-
-```{r}
-thresh <- 0.50
-predObj <-prediction(dfTrainLR$pred, dfTrainLR$Approve)
-precObj <- performance(predObj, measure = "prec")
-recObj <- performance(predObj, measure = "rec")
-precision <- (precObj@y.values)[[1]]
-prec.x <- (precObj@x.values)[[1]]
-recall <- (recObj@y.values)[[1]]
-pnull <- (length(which(dfTrainLR$Approve == 1)) / length(which(dfTrainLR$Approve != 2)))
-pnull
-ctab.test <- table(prediccion=as.numeric(dfTestLR$pred > thresh), datos=dfTestLR$Approve)
-ctab.test
-precision <- ctab.test[2,2]/sum(ctab.test[2,])
-paste("Precision:", precision)
-recall <- ctab.test[2,2]/sum(ctab.test[,2])
-paste("Recall:",recall)
-enrich <- precision / pnull
-paste("Enrich:",enrich)
-PorcFalsosDetect <- ctab.test[1,1]/sum(ctab.test[,1])
-PorcPositivosRech <- ctab.test[1,2]/sum(ctab.test[,2])
-paste("% Falsos detectados: ", round(PorcFalsosDetect * 100, digits=2))
-paste("% Creditos buenos rechazados: ", round(PorcPositivosRech * 100, digits=2))
-```
-
-##### 2.7.1.3 - Curva ROC
-
-Antes de decidir ajustar el umbral graficamos la curva ROC para entender las capacidades de predicción del modelo.
-
-```{r}
-sensObj <- performance(predObj, measure="sens")
-specObj <- performance(predObj, measure="spec")
-sensitivity <- (sensObj@y.values)[[1]]
-specificity <- (specObj@y.values)[[1]]
-dfplot <- data.frame(specm1=1-specificity, sens=sensitivity)
-fig <- ggplot(dfplot, aes(x=specm1, y=sens))
-fig <- fig + geom_line(color="red", size=1.25)
-fig <- fig + geom_abline(aes(slope=1, intercept=0))
-fig <- fig + theme_bw()
-fig <- fig + xlab("1 - Especificidad")
-fig <- fig + ylab("Sensibilidad")
-fig
-```
-
-## 3 - Ajustamos el umbral del modelo seleccionado (2.7)
+Seleccionamos el modelo 2.6 porque de los que mejor distribución de probabilidades y curva ROC tienen es el mas simple, o sea, que tiene menor cantidad de predictores.
 
 ### 3.1 - Rearmamos el modelo
 
 ```{r}
-predictores <- c("CODE_GENDER", "FLAG_OWN_CAR", "FLAG_OWN_REALTY", "CNT_CHILDREN", "AMT_INCOME_TOTAL", "NAME_INCOME_TYPE", "NAME_FAMILY_STATUS", "NAME_HOUSING_TYPE","DAYS_BIRTH", "DAYS_EMPLOYED", "FLAG_WORK_PHONE", "FLAG_PHONE", "FLAG_EMAIL", "OCCUPATION_TYPE", "CNT_FAM_MEMBERS")
+predictores <- c("CODE_GENDER", "FLAG_OWN_CAR", "FLAG_OWN_REALTY", "NAME_INCOME_TYPE", "NAME_FAMILY_STATUS", "NAME_HOUSING_TYPE", "FLAG_WORK_PHONE", "FLAG_PHONE", "FLAG_EMAIL", "OCCUPATION_TYPE", "AGE", "YEARS_EMPLOYED")
 formula <- paste(objetivo, paste(predictores, collapse = " + "), sep=" ~ ")
 modeloLR <- glm(formula, data=dfTrainLR, family=binomial(link="logit"))
 dfTrainLR$pred <- predict(modeloLR, newdata= dfTrainLR, type="response")
@@ -1579,7 +1462,7 @@ p2 <- ggplot(dfplot, aes(x=threshold)) +
 nplot(list(p1, p2))
 ```
 
-### 3.2 - Creamos la matriz de confusión
+### 3.3 - Creamos la matriz de confusión
 
 Tomamos un umbral del 50% para ir ajustando.
 
@@ -1599,9 +1482,9 @@ paste("% Falsos detectados: ", round(PorcFalsosDetect * 100, digits=2))
 paste("% Creditos buenos rechazados: ", round(PorcPositivosRech * 100, digits=2))
 ```
 
-### 3.3 - Ajustamos el Umbral del modelo
+### 3.4 - Ajustamos el Umbral del modelo
 
-Probamos con 45%, 55%, 60% y 65%. El mejor balance para las necesidades de negocio es con el 55%, con un buen balance entre precisión y exhaustividad.
+Probamos con 45%, 55%, 60% y 65%. El umbral que más cerca está de las necesidades de negocio es del 55%.
 
 ```{r}
 thresh <- 0.55
@@ -1622,54 +1505,16 @@ paste("% Creditos buenos rechazados: ", round(PorcPositivosRech * 100, digits=2)
 # Análisis de Resultados y Conclusiones
 
 Los objetivos que nos planteó el negocio fueron 2:
+
 - detectar 2/3 de los créditos malos
-- no perder más de 1/4 de créditos buenos
+- detectar 3/4 de los créditos buenos
 
-De acuerdo con el análisis realizado logramos ajustar un modelo que cumple mínimamente las necesidades de negocio propuestas para el dataset de testeo.
+De acuerdo con el análisis realizado no logramos ajustar un modelo que cumpla con las necesidades de negocio propuestas.
 
-Se observa un modelo que no tiene grandes capacidades de predicción, es solamente mejor en un 34% que el modelo nulo.
+Se observa un modelo que, si bien es un 78% mejor que el modelo nulo, a los fines de negocio tiene una muy baja detección de créditos malos y un alto rechazo de créditos buenos.
 
-Se partió de un set de datos muy desbalanceado, que obligó a aplicar la técnica SMOTE para obtener un balance para los sets de Entrenamiento y Testing.
+Por todo esto, entendemos que el proceso de Ciencia de Datos aplicado hasta el momento no logró un modelo que cumpla con los objetivos planteados.
 
-Hicimos el ejercicio de probar el modelo contra el set de datos completo original, que no había sido utilizado de forma completa para el entrenamiento (por SMOTE) y observamos que no se comporta de acuerdo con las necesidades de negocio.
+Existen otros algoritmos de clasificación que podrían probarse con el set de datos actual como Árboles de Decisión, Random Forest o Support Vector Machines, y verificar si mejoran la capacidad de predicción.
 
-Por todo esto, entendemos que el proceso de Ciencia de Datos aplicado hasta el momento no logró un modelo que cumpla con el objetivo planteado.
-
-Una primera solución podría ser tratar de conseguir un set de datos con mayor porcentaje de deudores. En este set solo se tiene información de 382 casos, que podría ser muy poco para que el algoritmo entrene correctamente.
-
-También existen otros algoritmos de clasificación que podrían probarse con el set de datos actual como Arboles de Decisión, Random Forest o Support Vector Machines, y verificar si mejoran la capacidad de predicción.
-
-
-***ToDo***
-
-- Falta análisis de gráficos y conclusión
-- Falta ajustar thresholds
-
-
----
-
-### 3.4 - Que pasa si probamos contra el set de datos original?
-
-Como ejercicio queremos saber que pasa si exponemos el modelo ajustado al set de datos original, para ver que resultados obtenemos.
-
-```{r}
-dfCreditCard$NAME_INCOME_TYPE[dfCreditCard$NAME_INCOME_TYPE == "Student"] <- "Working"
-dfCreditCard$pred <- predict(modeloLR, newdata= dfCreditCard, type="response")
-thresh <- 0.55
-ctab.test <- table(prediccion=as.numeric(dfCreditCard$pred > thresh), datos=dfCreditCard$Approve)
-ctab.test
-precision <- ctab.test[2,2]/sum(ctab.test[2,])
-paste("Precision:", precision)
-recall <- ctab.test[2,2]/sum(ctab.test[,2])
-paste("Recall:",recall)
-enrich <- precision / pnull
-paste("Enrich:",enrich)
-PorcFalsosDetect <- ctab.test[1,1]/sum(ctab.test[,1])
-PorcPositivosRech <- ctab.test[1,2]/sum(ctab.test[,2])
-paste("% Falsos detectados: ", round(PorcFalsosDetect * 100, digits=2))
-paste("% Creditos buenos rechazados: ", round(PorcPositivosRech * 100, digits=2))
-```
-
-El modelo de predicción funcionó bien para la detección de créditos buenos, no rechazó más de 1/4 de los mismos.
-
-Sin embargo, no funcionó nada bien para la detección de créditos malos, solo pudo detectar un 30%.
+Otra opción sería tratar de conseguir un set de datos con mayor cantidad de deudores. En este set solo se tiene información de 382 casos. Como mencionamos anteriormente, la media de deudores del mercado de tarjetas de Estados Unidos es de aproximadamente 3%, lo que implicaría conseguir un set de datos mucho más grande.
